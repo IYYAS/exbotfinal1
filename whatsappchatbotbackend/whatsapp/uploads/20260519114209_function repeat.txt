@@ -1,0 +1,167 @@
+function repeat
+Future pickImageFromGallery() async {
+  final returned = await ImagePicker().pickImage(source: ImageSource.gallery);
+  selectedImage = File(returned!.path);
+  print("hey");
+  emit(CompanyinfoInitial());
+
+
+}
+----------------------------------------------------------------------------
+get 
+  Future<Map<String, dynamic>?> fetchPlanUsage() async {
+    // ✅ If cached, return directly (fast)
+    if (cachedPlanUsage != null) {
+      print("📦 Using cached plan data");
+      return cachedPlanUsage;
+    }
+
+    // 🛰️ Otherwise, make API call
+    final url = "$baseurl/api/employer/employer-plan/";
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers:  await headers
+      );
+
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        final data = jsonDecode(response.body);
+        cachedPlanUsage = data; // 🔁 Save to cache
+        return data;
+      } else {
+        print("❌ Failed to fetch plan: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      print("❗ Exception during plan fetch: $e");
+      return null;
+    }
+  }
+--------------------------------------------------------------------------
+image put country put 
+  Future<void> updateEmployerProfile(int user) async {
+    print("Function is working");
+    try {
+      final token = await ApiConstants.getTokenOnly(); // ✅ get actual token
+      final token2 = await ApiConstants.getTokenOnly2(); // ✅ get actual token
+
+      var uri = Uri.parse('$baseurl/api/employer/employer-info/?pk=$user');
+
+      var request = http.MultipartRequest('PUT', uri);
+      final countryName = countryController.text.trim();
+      final alpha2Code = countryNameToCode[countryName] ?? "";
+
+
+      // Pass your Bearer token here
+      request.headers['Authorization'] = 'Bearer ${token ?? token2}';
+
+      // Form fields (update as per your form inputs)
+      request.fields['company_name'] = profilecompanyname.text.trim();
+      request.fields['company_info'] = profilecompanyinfo.text.trim();
+      request.fields['email'] = profileemail.text.trim();
+      request.fields['phone_number'] = '$selectedCountryCode${profilephone.text.trim()}';
+      request.fields['street_address'] = profilestreet.text.trim();
+      request.fields['state'] = stateController.text.trim();  // ✅ FIXED
+      request.fields['city'] = cityController.text.trim();    // ✅ FIXED
+      request.fields['postal_code'] = profilepostcode.text.trim();
+      request.fields['country'] = jsonEncode({
+        "value": alpha2Code,
+        "label": countryName,
+        "flag": EmojiConverter.fromAlpha2CountryCode(alpha2Code) ?? ""
+      });
+      // Handle optional image upload
+      if (selectedImage != null) {
+        final photoFile = await http.MultipartFile.fromPath(
+          'logo',  // <-- this must match your backend field name for image
+          selectedImage!.path,
+          contentType: MediaType('image', 'jpeg'), // or MediaType('image', 'png') based on your image type
+        );
+        request.files.add(photoFile);
+      }
+
+      // Send request
+      final response = await request.send();
+
+      // Process response
+      final responseBody = await response.stream.bytesToString();
+      final data = json.decode(responseBody);
+      print(response.statusCode);
+      if (response.statusCode == 200) {
+        print(response.statusCode);
+
+        print("Profile Updated Successfully");
+        print('Response: $data');
+        cleartextedit();
+        getcompanyinfo();
+      } else {
+        print('Failed: ${response.statusCode}');
+        print('Response: $data');
+      }
+    } catch (e) {
+      print('Error: $e');
+    }
+  }
+-----------------------------------------------------------------------------
+post 
+  Future<void> postVisitedCount(String employeeId) async {
+
+    print("yes");
+    print("Employee ID: $employeeId");
+
+    final uri = Uri.parse("$baseurl/api/employer/employee-profile-access/");
+    print("Posting to: $uri");
+
+    try {
+      final request = http.MultipartRequest("POST", uri);
+
+      final token = await ApiConstants.getTokenOnly(); // ✅ get actual token
+
+      request.fields["employee_id"] = employeeId;
+      request.headers["Authorization"] = "Bearer $token";
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+
+      if (response.statusCode >= 200 && response.statusCode <= 299) {
+        print("✅ Visited count updated: $responseBody");
+      } else {
+        print("❌ Failed to update visited count: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("❗ Exception during visited count post: $e");
+    }
+  }
+------------------------------------------------------------------------------------
+  Future<void>getserch() async {
+
+    final url = "$baseurl/api/employer/search-employee/?page=$counter";
+    final response = await http.get(Uri.parse(url),
+        headers: await headers
+    );
+   if(response.statusCode >= 200 && response.statusCode <= 299){
+     final data = locationsearchFromJson(response.body);
+     print(data);
+     imagesData.addAll(data.data.map((Datum) {
+       return {
+         "user":Datum.user,
+         "profile": Datum.profile.profilePic,
+         "name": Datum.name,
+         "job_title": Datum.jobTitle,
+         "preferred_work_location": Datum.preferredWorkLocation,
+
+       };
+     }).toList());
+     print(headers);
+
+     print("hey where$imagesData");
+
+     emit(DefaultsearchInitial());
+
+   }else {
+     emit(DefaultsearchError(message:"Server error: ${response.statusCode}"));
+   }
+
+
+  }
+
+

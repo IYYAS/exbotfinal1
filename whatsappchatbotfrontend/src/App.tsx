@@ -1,0 +1,87 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import DashboardLayout from './components/DashboardLayout';
+import ConnectAccount from './pages/ConnectAccount';
+import LiveChat from './pages/LiveChatRefactored';
+import TemplateManager from './pages/TemplateManager';
+
+const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
+};
+
+const Dashboard = () => {
+  const { user } = useAuth();
+  return (
+    <div style={{ 
+      background: 'var(--surface-color)', 
+      border: '1px solid var(--border-color)', 
+      borderRadius: '12px', 
+      padding: '40px',
+      boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
+      maxWidth: '600px'
+    }}>
+      <h2 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '16px' }}>
+        Welcome, {user?.username}!
+      </h2>
+      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
+        Welcome to your WhatsApp Chatbot management system.
+      </p>
+      
+      {user?.vendor && (
+        <div style={{ 
+          background: 'var(--bg-color)', 
+          border: '1px solid var(--border-color)', 
+          borderRadius: '8px', 
+          padding: '16px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <span style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Workspace / Vendor</span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: '600', fontSize: '14px' }}>{user.vendor.name}</span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const AppRoutes = () => {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
+      <Route 
+        path="/" 
+        element={
+          <PrivateRoute>
+            <DashboardLayout />
+          </PrivateRoute>
+        }
+      >
+        <Route index element={<Dashboard />} />
+        <Route path="whatsapp/connect" element={<ConnectAccount />} />
+        <Route path="chat" element={<LiveChat />} />
+        <Route path="templates" element={<TemplateManager />} />
+        {/* Mock other subpages back to home */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
+};
+
+
+const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <Router>
+        <AppRoutes />
+      </Router>
+    </AuthProvider>
+  );
+};
+
+export default App;
