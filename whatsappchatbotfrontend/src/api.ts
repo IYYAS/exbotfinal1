@@ -29,14 +29,14 @@ export const whatsappAPI = {
   saveSettings: (settingsData: any) => api.post('/whatsapp/settings/', settingsData),
   testConnection: (credentials: any) => api.post('/whatsapp/test-connection/', credentials),
   fetchAccountStatus: () => api.get('/whatsapp/account-status/'),
-  
+
   // Live Chat API endpoints
   fetchContacts: () => api.get('/whatsapp/contacts/'),
   addContact: (contactData: any) => api.post('/whatsapp/contacts/', contactData),
   updateContact: (id: number, contactData: any) => api.put(`/whatsapp/contacts/${id}/`, contactData),
   fetchMessages: (contact?: string) => api.get('/whatsapp/messages/', { params: contact ? { contact } : {} }),
   fetchTemplates: () => api.get('/whatsapp/templates/'),
-  sendMessage: (to_number: string, body: string, extraData: any = {}) => 
+  sendMessage: (to_number: string, body: string, extraData: any = {}) =>
     api.post('/whatsapp/send/', { to_number, body, ...extraData }),
   sendTemplate: (to_number: string, template: any, imageUrl?: string) => {
     const data: any = { to_number, template };
@@ -45,7 +45,7 @@ export const whatsappAPI = {
     }
     return api.post('/whatsapp/send-template/', data);
   },
-  uploadMedia: (formData: FormData) => 
+  uploadMedia: (formData: FormData) =>
     api.post('/whatsapp/media/upload/', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
