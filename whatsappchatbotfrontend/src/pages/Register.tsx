@@ -28,10 +28,8 @@ const Register: React.FC = () => {
         setIsLoading(true);
 
         try {
-            // Automatically use vendor_name as the username
             const payload = {
-                ...formData,
-                username: formData.vendor_name.toLowerCase().replace(/\s+/g, '_') // sanitize vendor name to be a valid username
+                ...formData
             };
             
             const response = await axios.post('http://localhost:8000/api/users/register/', payload);
@@ -63,7 +61,7 @@ const Register: React.FC = () => {
 
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
-                        <label className="form-label" htmlFor="vendor_name">Username</label>
+                        <label className="form-label" htmlFor="vendor_name">Company/Vendor Name</label>
                         <input
                             id="vendor_name"
                             name="vendor_name"
@@ -72,7 +70,20 @@ const Register: React.FC = () => {
                             value={formData.vendor_name}
                             onChange={handleChange}
                             required
-                            placeholder="Choose a username"
+                            placeholder="e.g., Acme Corp"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label className="form-label" htmlFor="username">Username</label>
+                        <input
+                            id="username"
+                            name="username"
+                            type="text"
+                            className="form-input"
+                            value={formData.username}
+                            onChange={handleChange}
+                            required
+                            placeholder="Choose your login username"
                         />
                     </div>
                     <div className="form-group">

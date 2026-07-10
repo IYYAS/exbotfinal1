@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -10,10 +10,12 @@ import {
   Zap,
   Radio,
   Activity,
-  ShoppingBag,
   Shield,
   ShieldCheck,
-  CreditCard
+  CreditCard,
+  Bot,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -37,13 +39,18 @@ const DashboardLayout: React.FC = () => {
       title: 'WHATSAPP',
       items: [
         { name: 'Connect Account', icon: <Zap size={18} />, path: '/whatsapp/connect' },
-        { name: 'Bot Manager', icon: <Zap size={18} />, path: '/automation' },
+        { 
+          name: 'Chatbot Manager', 
+          icon: <Bot size={18} />, 
+          path: '', // Parent item, no direct path
+          subItems: [
+            { name: 'WhatsApp Bot', icon: <MessageSquare size={16} color="#10b981" />, path: '/bot-reply' }
+          ]
+        },
         { name: 'Subscriber Manager', icon: <Users size={18} />, path: '/contacts' },
         { name: 'Broadcasting', icon: <Radio size={18} />, path: '/campaigns' },
         { name: 'Live Chat', icon: <MessageSquare size={18} />, path: '/chat' },
-        { name: 'Templates', icon: <MessageSquare size={18} />, path: '/templates' },
-        { name: 'Webhook Workflow', icon: <Activity size={18} />, path: '/flows' },
-        { name: 'eCommerce Catalog', icon: <ShoppingBag size={18} />, path: '/integrations' },
+        { name: 'WhatsApp Automation', icon: <Activity size={18} />, path: '/flows' },
       ]
     },
     {
@@ -56,6 +63,94 @@ const DashboardLayout: React.FC = () => {
       ]
     }
   ];
+
+  const SidebarItem = ({ item, user }: any) => {
+    const [expanded, setExpanded] = useState(false);
+    const hasSubItems = item.subItems && item.subItems.length > 0;
+
+    if (hasSubItems) {
+      return (
+        <div style={{ marginBottom: '2px' }}>
+          <div
+            onClick={() => setExpanded(!expanded)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              color: 'var(--text-secondary)',
+              cursor: 'pointer',
+              fontSize: '13.5px',
+              fontWeight: '500',
+              transition: '0.2s'
+            }}
+            onMouseOver={e => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+            onMouseOut={e => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
+          >
+            <span style={{ display: 'flex' }}>{item.icon}</span>
+            <span style={{ flex: 1 }}>{item.name}</span>
+            <span style={{ display: 'flex', color: 'var(--text-secondary)' }}>
+              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </span>
+          </div>
+          {expanded && (
+            <div style={{ paddingLeft: '12px', marginTop: '4px', marginBottom: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+              {item.subItems.map((sub: any) => (
+                <NavLink
+                  key={sub.name}
+                  to={sub.path}
+                  style={({ isActive }) => ({
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    background: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                    textDecoration: 'none',
+                    fontSize: '13px',
+                    fontWeight: isActive ? '600' : '500',
+                    transition: '0.2s'
+                  })}
+                >
+                  <span style={{ display: 'flex' }}>{sub.icon}</span>
+                  {sub.name}
+                </NavLink>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <NavLink
+        to={item.path}
+        style={({ isActive }) => ({
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          padding: '10px 16px',
+          borderRadius: '8px',
+          color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
+          background: isActive ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
+          border: isActive ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
+          textDecoration: 'none',
+          marginBottom: '2px',
+          fontSize: '13.5px',
+          fontWeight: isActive ? '600' : '500',
+          transition: '0.2s'
+        })}
+      >
+        <span style={{ display: 'flex' }}>{item.icon}</span>
+        <span style={{ flex: 1 }}>{item.name}</span>
+        {item.name === 'Connect Account' && !user?.vendor?.name && (
+          <div style={{ width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%' }}></div>
+        )}
+      </NavLink>
+    );
+  };
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg-color)', color: 'var(--text-primary)' }}>
@@ -106,39 +201,7 @@ const DashboardLayout: React.FC = () => {
                 </div>
               )}
               {group.items.map((item) => (
-                <NavLink
-                  key={item.name}
-                  to={item.path}
-                  style={({ isActive }) => ({
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '10px 16px',
-                    borderRadius: '8px',
-                    color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-                    background: isActive ? 'rgba(59, 130, 246, 0.15)' : 'transparent',
-                    border: isActive ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid transparent',
-                    textDecoration: 'none',
-                    marginBottom: '2px',
-                    fontSize: '13.5px',
-                    fontWeight: isActive ? '600' : '500',
-                    transition: '0.2s'
-                  })}
-                >
-                  <span style={{ display: 'flex' }}>
-                    {item.icon}
-                  </span>
-                  {item.name}
-                  {item.name === 'Connect Account' && !user?.vendor?.name && (
-                    <div style={{ 
-                      marginLeft: 'auto', 
-                      width: '6px', 
-                      height: '6px', 
-                      background: '#ef4444', 
-                      borderRadius: '50%' 
-                    }}></div>
-                  )}
-                </NavLink>
+                <SidebarItem key={item.name} item={item} user={user} />
               ))}
             </div>
           ))}
@@ -231,7 +294,7 @@ const DashboardLayout: React.FC = () => {
         </header>
 
         {/* Page Content */}
-        <main style={{ flex: 1, overflowY: 'auto', padding: '32px', backgroundColor: 'var(--bg-color)' }}>
+        <main style={{ flex: 1, overflowY: 'auto', padding: '32px', backgroundColor: 'var(--bg-color)', display: 'flex', flexDirection: 'column' }}>
           <Outlet />
         </main>
       </div>

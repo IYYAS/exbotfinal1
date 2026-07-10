@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'users',
     'whatsapp_service',
+    'django_celery_beat',
 ]
 
 MIDDLEWARE = [
@@ -156,3 +157,10 @@ WHATSAPP_API_VERSION = 'v20.0'
 WHATSAPP_VERIFY_TOKEN = 'service-whatsapp-token'
 NGROK_URL = 'https://lanette-unmonarchic-contradictorily.ngrok-free.dev'
 
+# Celery Configuration Options
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'
+CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'UTC'

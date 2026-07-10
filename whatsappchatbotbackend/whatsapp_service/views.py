@@ -17,14 +17,18 @@ from rest_framework import status, permissions
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from .models import (
-    Contact, WhatsAppMessageLog, WhatsAppTemplate, 
-    VendorSettings
+    Contact, WhatsAppMessageLog, WhatsAppTemplate,
+    VendorSettings, ChatbotFlow,
 )
+from users.models import Vendor
 from .serializers import (
-    ContactSerializer, WhatsAppMessageLogSerializer, 
+    ContactSerializer, WhatsAppMessageLogSerializer,
     WhatsAppTemplateSerializer, VendorSettingsSerializer
 )
 from .client import WhatsAppClient
+from .flow_engine.engine import FlowEngine
+from .flow_engine.bot_flow_processor import BotFlowProcessor
+from .flow_engine.message_handler import MessageHandler
 
 logger = logging.getLogger(__name__)
 
@@ -77,12 +81,13 @@ class WhatsAppWebhookView(View):
             for entry in entries:
                 for change in entry.get('changes', []):
                     value = change.get('value', {})
+                    top_level_contacts = value.get('contacts', [])
                     # Incoming messages
                     messages = value.get('messages', [])
                     if messages:
                         print(f"📨 Processing {len(messages)} message(s)")
                     for msg in messages:
-                        self.handle_whatsapp_message(msg, vendor)
+                        self.handle_whatsapp_message(msg, vendor, top_level_contacts)
                     # Status updates
                     statuses = value.get('statuses', [])
                     if statuses:
@@ -95,132 +100,24 @@ class WhatsAppWebhookView(View):
             logger.error(f"Webhook error: {e}")
             return HttpResponse('Error', status=500)
 
-    def handle_whatsapp_message(self, msg, vendor):
-        wa_id = msg.get('from', '')
-        msg_type = msg.get('type', 'text')
-        msg_id = msg.get('id', '')
-        print(f"\n🔄 Message from {wa_id}, type={msg_type}, id={msg_id}, vendor={vendor.name if vendor else 'NONE'}")
-        
-        # Determine sender name if present
-        first_name = "WhatsApp User"
-        try:
-            profile = msg.get('contacts', [{}])[0].get('profile', {})
-            first_name = profile.get('name', 'WhatsApp User')
-        except Exception:
-            pass
+    # ── Shared engine instances (one per process) ───────────────────────────
+    _flow_engine     = FlowEngine()
+    _bot_processor   = BotFlowProcessor(_flow_engine)
+    _msg_handler     = MessageHandler(_bot_processor)
 
-        contact, created = Contact.objects.get_or_create(
-            vendor=vendor, 
-            wa_id=wa_id, 
-            defaults={'platform': 'whatsapp', 'first_name': first_name}
-        )
-        if not created and first_name != "WhatsApp User" and contact.first_name != first_name:
-            contact.first_name = first_name
-            contact.save()
-            
-        msg_type = msg.get('type', 'text')
-        
-        # Extract message body based on type
-        msg_body = ''
-        attachment_path = None
-        
-        if msg_type == 'text':
-            msg_body = msg.get('text', {}).get('body', '')
-        elif msg_type == 'interactive':
-            interactive = msg.get('interactive', {})
-            int_type = interactive.get('type')
-            if int_type == 'button_reply':
-                msg_body = interactive.get('button_reply', {}).get('title', '')
-            elif int_type == 'list_reply':
-                msg_body = interactive.get('list_reply', {}).get('title', '')
-        elif msg_type == 'contacts':
-            contacts_list = msg.get('contacts', [])
-            names = [c.get('name', {}).get('formatted_name', '') for c in contacts_list]
-            names_str = ', '.join([n for n in names if n])
-            msg_body = f"📇 Contact Card: {names_str}" if names_str else "📇 Contact Card"
-        
-        elif msg_type == 'location':
-            loc = msg.get('location', {})
-            latitude  = loc.get('latitude')
-            longitude = loc.get('longitude')
-            name      = loc.get('name', '')
-            address   = loc.get('address', '')
+    def handle_whatsapp_message(self, msg, vendor, contacts=None):
+        """Delegate to MessageHandler. Kept for backward compatibility."""
+        self._msg_handler.handle(msg, vendor, contacts)
 
-            if name and address:
-                msg_body = f"📍 {name} — {address}"
-            elif name:
-                msg_body = f"📍 {name}"
-            elif latitude and longitude:
-                msg_body = f"📍 Location ({latitude}, {longitude})"
-            else:
-                msg_body = "📍 Location shared"
-        elif msg_type in ['image', 'video', 'document', 'audio', 'voice', 'sticker']:
-            media_obj = msg.get(msg_type, {})
-            media_id = media_obj.get('id')
-            msg_body = media_obj.get('caption', f"[{msg_type.upper()} ATTACHMENT]")
-            
-            # Download file from Meta if credentials configured
-            if media_id and vendor:
-                try:
-                    client = WhatsAppClient(vendor=vendor)
-                    media_meta = client.get_media_url(media_id)
-                    media_url = media_meta.get('url')
-                    if media_url:
-                        import requests
-                        headers = {"Authorization": f"Bearer {client.access_token}"}
-                        dl_res = requests.get(media_url, headers=headers)
-                        if dl_res.ok:
-                            timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
-                            
-                            import mimetypes
-                            content_type = dl_res.headers.get('Content-Type', '').split(';')[0].strip()
-                            ext = mimetypes.guess_extension(content_type)
-                            if ext:
-                                ext = ext.lstrip('.')
-                            if not ext or ext == 'bin':
-                                if 'image' in content_type:
-                                    ext = 'jpg'
-                                elif 'video' in content_type:
-                                    ext = 'mp4'
-                                elif 'audio' in content_type or 'ogg' in content_type:
-                                    ext = 'ogg'
-                                elif 'webp' in content_type or msg_type == 'sticker':
-                                    ext = 'webp'
-                                else:
-                                    ext = 'pdf'
-                                    
-                            filename = f"incoming_{timestamp}_{media_id}.{ext}"
-                            rel_path = os.path.join('whatsapp', 'uploads', filename)
-                            save_path = os.path.join(settings.MEDIA_ROOT, rel_path)
-                            os.makedirs(os.path.dirname(save_path), exist_ok=True)
-                            with open(save_path, 'wb') as f:
-                                f.write(dl_res.content)
-                            attachment_path = rel_path.replace('\\', '/')
-                except Exception as ex:
-                    logger.error(f"Error downloading media: {ex}")
+    def process_bot_flow(self, wa_id, msg, vendor, contact):
+        """Delegate to BotFlowProcessor. Kept for backward compatibility."""
+        self._bot_processor.process(wa_id, msg, vendor, contact)
 
-        WhatsAppMessageLog.objects.create(
-            vendor=vendor, 
-            contact=contact, 
-            contact_wa_id=wa_id,
-            wamid=msg.get('id'), 
-            is_incoming=True, 
-            status='received',
-            message_body=msg_body, 
-            message_type=msg_type, 
-            platform='whatsapp',
-            attachment=attachment_path,
-            data=msg
-        )
-        
-        # Update contact last activity
-        contact.unread_messages_count += 1
-        contact.last_messaged_at = timezone.now()
-        contact.save()
+    def execute_flow_node(self, client, wa_id, node, vendor, nodes=None, flow=None):
+        """Delegate to FlowEngine. Kept for backward compatibility."""
+        self._flow_engine.execute_node(client, wa_id, node, vendor, nodes, flow)
 
-# ─────────────────────────────────────────────────────────────
-# CRM VIEWS (Contacts, Messages, Sending, Settings)
-# ─────────────────────────────────────────────────────────────
+
 class SettingsAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -504,7 +401,9 @@ class MediaUploadAPIView(APIView):
             for chunk in file_obj.chunks():
                 destination.write(chunk)
 
-        local_url = f"{settings.MEDIA_URL}{rel_path.replace(os.sep, '/')}"
+        base_url = getattr(settings, 'NGROK_URL', request.build_absolute_uri('/'))
+        base_url = base_url.rstrip('/')
+        local_url = f"{base_url}{settings.MEDIA_URL}{rel_path.replace(os.sep, '/')}"
         client = WhatsAppClient(vendor=request.user.vendor)
 
         try:
@@ -532,7 +431,7 @@ class MediaUploadAPIView(APIView):
                         upload_path = ogg_save_path
                         upload_filename = ogg_filename
                         upload_mime = 'audio/ogg'
-                        local_url = f"{settings.MEDIA_URL}{ogg_rel_path.replace(os.sep, '/')}"
+                        local_url = f"{base_url}{settings.MEDIA_URL}{ogg_rel_path.replace(os.sep, '/')}"
                     else:
                         print(f'ffmpeg error: {result.stderr.decode()}')
 
@@ -559,6 +458,37 @@ class MediaUploadAPIView(APIView):
                 'mime_type': file_obj.content_type,
                 'meta_error': str(e)
             })
+
+class TemplateMediaUploadAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        file_obj = request.FILES.get('file')
+        if not file_obj:
+            return Response({'error': 'No file provided'}, status=400)
+            
+        try:
+            client = WhatsAppClient(vendor=request.user.vendor)
+            
+            # Read file directly into memory for resumable upload
+            file_content = file_obj.read()
+            mime_type = file_obj.content_type
+            
+            meta_result = client.upload_resumable_media(file_content, mime_type)
+            
+            if 'error' in meta_result:
+                return Response(meta_result, status=400)
+                
+            handle = meta_result.get('h')
+            if not handle:
+                return Response({'error': 'No header_handle returned from Meta', 'details': meta_result}, status=400)
+                
+            return Response({
+                'success': True,
+                'header_handle': handle
+            })
+        except Exception as e:
+            return Response({'error': str(e)}, status=500)
 
 class TemplateListAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -713,221 +643,20 @@ class SendTemplateAPIView(APIView):
         if not to_number:
             return Response({
                 'success': False,
-                'error': 'to_number is required',
-                'message': 'Missing required field: to_number',
-                'details': 'to_number must be a WhatsApp number with country code (e.g., "919876543210")',
-                'all_fields': {
-                    'to_number': {
-                        'type': 'String',
-                        'required': True,
-                        'description': 'Recipient WhatsApp number with country code',
-                        'example': '919876543210',
-                        'format': 'Country code + mobile number (no + or spaces)'
-                    },
-                    'template': {
-                        'type': 'Object',
-                        'required': True,
-                        'description': 'Template configuration',
-                        'fields': {
-                            'name': {
-                                'type': 'String',
-                                'required': True,
-                                'description': 'Template name',
-                                'example': 'hello_world'
-                            },
-                            'language': {
-                                'type': 'Object',
-                                'required': False,
-                                'default': '{"code": "en_US"}',
-                                'description': 'Language configuration',
-                                'fields': {
-                                    'code': {
-                                        'type': 'String',
-                                        'description': 'Language code',
-                                        'examples': ['en_US', 'hi_IN', 'ar_AR', 'es_ES']
-                                    }
-                                }
-                            },
-                            'components': {
-                                'type': 'Array',
-                                'required': False,
-                                'description': 'Template variables and headers',
-                                'default': '[] (auto-generated if not provided)',
-                                'structure': [
-                                    {
-                                        'type': 'body',
-                                        'parameters': [
-                                            {'type': 'text', 'text': 'value1'},
-                                            {'type': 'text', 'text': 'value2'}
-                                        ]
-                                    }
-                                ]
-                            }
-                        }
-                    }
-                },
-                'example': {
-                    'to_number': '919876543210',
-                    'template': {
-                        'name': 'hello_world',
-                        'language': {'code': 'en_US'},
-                        'components': []
-                    }
-                }
+                'error': 'to_number is required'
             }, status=400)
 
         if not template_data:
             return Response({
                 'success': False,
-                'error': 'template object is required',
-                'message': 'Missing required field: template',
-                'details': 'template must be an object with at least "name" field',
-                'all_fields': {
-                    'to_number': f'String (provided: {to_number})',
-                    'template': {
-                        'type': 'Object',
-                        'required': True,
-                        'status': 'MISSING',
-                        'required_subfields': {
-                            'name': {
-                                'type': 'String',
-                                'required': True,
-                                'description': 'Template name (e.g., "order_confirmation")'
-                            },
-                            'language': {
-                                'type': 'Object',
-                                'required': False,
-                                'default': '{"code": "en_US"}',
-                                'fields': {
-                                    'code': 'String (e.g., "en_US", "hi_IN", "ar_AR")'
-                                }
-                            },
-                            'components': {
-                                'type': 'Array',
-                                'required': False,
-                                'default': '[] (auto-generated if not provided)',
-                                'description': 'Template variables for body and header',
-                                'example_body_params': {
-                                    'type': 'body',
-                                    'parameters': [
-                                        {'type': 'text', 'text': 'John Doe'},
-                                        {'type': 'text', 'text': 'Order #12345'},
-                                        {'type': 'text', 'text': '$99.99'}
-                                    ]
-                                },
-                                'example_image_header': {
-                                    'type': 'header',
-                                    'parameters': [
-                                        {'type': 'image', 'image': {'link': 'https://example.com/image.jpg'}}
-                                    ]
-                                }
-                            }
-                        }
-                    }
-                },
-                'example': {
-                    'to_number': to_number,
-                    'template': {
-                        'name': 'hello_world',
-                        'language': {'code': 'en_US'},
-                        'components': []
-                    }
-                }
+                'error': 'template object is required'
             }, status=400)
 
         template_name = template_data.get('name')
         if not template_name:
             return Response({
                 'success': False,
-                'error': 'template.name is required',
-                'message': 'Missing required field: template.name',
-                'details': 'template.name must contain the name of your WhatsApp template',
-                'received_template_data': template_data,
-                'all_fields': {
-                    'to_number': f'String (provided: {to_number})',
-                    'template': {
-                        'type': 'Object',
-                        'name': {
-                            'type': 'String',
-                            'required': True,
-                            'status': 'MISSING',
-                            'description': 'Template name (e.g., "order_confirmation")',
-                            'example': 'order_confirmation'
-                        },
-                        'language': {
-                            'type': 'Object',
-                            'required': False,
-                            'default': '{"code": "en_US"}',
-                            'fields': {
-                                'code': {
-                                    'type': 'String',
-                                    'description': 'Language code',
-                                    'examples': ['en_US', 'hi_IN', 'ar_AR', 'es_ES', 'pt_BR', 'fr_FR']
-                                }
-                            }
-                        },
-                        'components': {
-                            'type': 'Array',
-                            'required': False,
-                            'default': '[] (auto-generated)',
-                            'description': 'Template parameters for variables and headers',
-                            'example_with_body_variables': {
-                                'type': 'object',
-                                'structure': [
-                                    {
-                                        'type': 'body',
-                                        'parameters': [
-                                            {'type': 'text', 'text': 'John Doe'},
-                                            {'type': 'text', 'text': 'Order #12345'}
-                                        ]
-                                    }
-                                ]
-                            },
-                            'example_with_image': {
-                                'type': 'object',
-                                'structure': [
-                                    {
-                                        'type': 'header',
-                                        'parameters': [
-                                            {
-                                                'type': 'image',
-                                                'image': {
-                                                    'link': 'https://example.com/image.jpg'
-                                                }
-                                            }
-                                        ]
-                                    }
-                                ]
-                            },
-                            'parameter_types': ['text', 'image', 'document', 'video']
-                        }
-                    }
-                },
-                'example_minimal': {
-                    'to_number': to_number,
-                    'template': {
-                        'name': 'order_confirmation',
-                        'language': {'code': 'en_US'},
-                        'components': []
-                    }
-                },
-                'example_with_variables': {
-                    'to_number': to_number,
-                    'template': {
-                        'name': 'order_confirmation',
-                        'language': {'code': 'en_US'},
-                        'components': [
-                            {
-                                'type': 'body',
-                                'parameters': [
-                                    {'type': 'text', 'text': 'John Doe'},
-                                    {'type': 'text', 'text': 'Order #12345'},
-                                    {'type': 'text', 'text': '$99.99'}
-                                ]
-                            }
-                        ]
-                    }
-                }
+                'error': 'template.name is required'
             }, status=400)
 
         # Pre-check: warn if template is not APPROVED locally
@@ -1031,29 +760,26 @@ class SendTemplateAPIView(APIView):
                 defaults={'platform': 'whatsapp', 'first_name': 'New Contact'}
             )
 
-            # Log message
-            log_data = result.copy() if isinstance(result, dict) else {}
+            is_success = 'error' not in result
+            wamid = result.get('messages', [{}])[0].get('id') if (is_success and isinstance(result, dict)) else None
+
+            # Log message in a single database create call
             log = WhatsAppMessageLog.objects.create(
                 vendor=vendor,
                 contact=contact,
                 contact_wa_id=to_number,
                 is_incoming=False,
-                status='pending',
+                status='sent' if is_success else 'failed',
+                wamid=wamid,
                 message_body=f"Template: {template_name}",
                 message_type='template',
                 platform='whatsapp',
-                data=log_data
+                data=result if isinstance(result, dict) else {}
             )
 
-            if 'error' not in result:
-                log.status = 'sent'
-                messages = result.get('messages', [])
-                if messages:
-                    log.wamid = messages[0].get('id')
-                log.save()
-
+            if is_success:
                 contact.last_messaged_at = timezone.now()
-                contact.save()
+                contact.save(update_fields=['last_messaged_at'])
 
                 return Response({
                     'success': True,
@@ -1062,9 +788,6 @@ class SendTemplateAPIView(APIView):
                     'meta_response': result
                 })
             else:
-                log.status = 'failed'
-                log.save()
-                
                 error_msg = result.get('error', 'Unknown error from Meta API')
                 error_code = result.get('error', {}).get('code') if isinstance(result.get('error'), dict) else 'N/A'
                 
@@ -1173,3 +896,435 @@ class SendLocationMessageView(APIView):
         return Response(response.json())
 
 
+# ─────────────────────────────────────────────────────────────
+# SEND INTERACTIVE BUTTON MESSAGE
+# POST /whatsapp/send-interactive-buttons/
+# Body: {
+#   to_number, body_text, footer_text (optional),
+#   header_image_url OR header_image_id (optional),
+#   buttons: [{"id": "btn_1", "title": "Yes"}, ...]  (max 3)
+# }
+# ─────────────────────────────────────────────────────────────
+class SendInteractiveButtonAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        vendor = getattr(request.user, 'vendor', None)
+        if not vendor:
+            return Response({'error': 'No vendor account associated.'}, status=403)
+
+        to_number = request.data.get('to_number')
+        body_text = request.data.get('body_text', '')
+        footer_text = request.data.get('footer_text', '')
+        header_image_url = request.data.get('header_image_url', '')
+        header_image_id = request.data.get('header_image_id', '')
+        buttons_raw = request.data.get('buttons', [])  # [{"id":"btn_1","title":"Yes"},...]
+        reply_to = request.data.get('reply_to')
+
+        if not to_number:
+            return Response({'error': 'to_number is required.'}, status=400)
+        if not body_text:
+            return Response({'error': 'body_text is required.'}, status=400)
+        if not buttons_raw or len(buttons_raw) == 0:
+            return Response({'error': 'At least one button is required.'}, status=400)
+        if len(buttons_raw) > 3:
+            return Response({'error': 'Maximum 3 buttons allowed.'}, status=400)
+
+        # Build buttons array in Meta format
+        buttons = []
+        for btn in buttons_raw:
+            btn_id = str(btn.get('id', '')).strip()
+            btn_title = str(btn.get('title', '')).strip()
+            if not btn_id or not btn_title:
+                return Response({'error': 'Each button must have an id and title.'}, status=400)
+            if len(btn_title) > 20:
+                return Response({'error': f'Button title "{btn_title}" exceeds 20 characters.'}, status=400)
+            buttons.append({
+                "type": "reply",
+                "reply": {"id": btn_id, "title": btn_title}
+            })
+
+        # Build interactive payload
+        interactive_data = {
+            "type": "button",
+            "body": {"text": body_text},
+            "action": {"buttons": buttons}
+        }
+
+        # Optional header (image)
+        if header_image_url or header_image_id:
+            image_obj = {}
+            if header_image_id:
+                image_obj["id"] = header_image_id
+            else:
+                image_obj["link"] = header_image_url
+            interactive_data["header"] = {
+                "type": "image",
+                "image": image_obj
+            }
+
+        # Optional footer
+        if footer_text:
+            interactive_data["footer"] = {"text": footer_text}
+
+        client = WhatsAppClient(vendor=vendor)
+        result = client.send_interactive_message(
+            to_number=to_number,
+            interactive_data=interactive_data,
+            reply_to_message_id=reply_to
+        )
+
+        if 'error' not in result:
+            return Response({'success': True, 'meta_response': result})
+        else:
+            return Response(
+                {'success': False, 'error': result.get('error'), 'meta_response': result},
+                status=400
+            )
+
+
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from .models import ChatbotFlow, Sequence, SequenceStep
+from .serializers import ChatbotFlowSerializer
+
+def sync_sequences_from_flow(flow):
+    flow_data = flow.flow_data or {}
+    
+    # flow_data structure: {'id': '...', 'nodes': { 'node_id': { ... }, ... }}
+    nodes_dict = flow_data.get('nodes', {})
+    
+    # if nodes is somehow a list, convert to dict
+    if isinstance(nodes_dict, list):
+        nodes_dict = {str(n.get('id')): n for n in nodes_dict}
+        
+    nodes = list(nodes_dict.values())
+        
+    sequence_nodes = []
+    for n in nodes:
+        t = n.get('type', '')
+        if t == 'new_sequence_campaign' or t.startswith('New_sequence_campaign'):
+            sequence_nodes.append(n)
+            
+    vendor = flow.vendor
+    
+    for seq_node in sequence_nodes:
+        seq_name = seq_node.get('data', {}).get('sequence_name', '').strip()
+        if not seq_name:
+            continue
+            
+        sequence, _ = Sequence.objects.get_or_create(vendor=vendor, name=seq_name)
+        
+        current_node_id = str(seq_node.get('id'))
+        order = 1
+        valid_step_ids = []
+        
+        while True:
+            # find the next send_message_after node in the chain. The chain can be:
+            #  - seq_node -> send_message_after -> (Text) -> send_message_after -> ...
+            #  - or direct: seq_node -> send_message_after -> send_message_after -> ...
+            current_node = nodes_dict.get(current_node_id)
+            if not current_node:
+                break
+
+            # Determine which node is the send node to process in this iteration.
+            ctype = current_node.get('type', '')
+            if ctype == 'send_message_after' or ctype.startswith('Send_message_after'):
+                # current node itself is a send node
+                target_node = current_node
+                target_id = current_node_id
+            else:
+                outputs = current_node.get('outputs', {})
+                next_output = outputs.get('next', {})
+                conns = next_output.get('connections', [])
+                if not conns:
+                    break
+                target_id = str(conns[0].get('node'))
+                target_node = nodes_dict.get(target_id)
+
+            # The frontend converts the type 'send_message_after' to 'Send_message_after Node'
+            # Let's check both possibilities.
+            target_type = target_node.get('type', '') if target_node else ''
+            is_valid_type = target_type == 'send_message_after' or target_type.startswith('Send_message_after')
+
+            if not target_node or not is_valid_type:
+                break
+
+            node_data = target_node.get('data', {})
+            seq_schedule = node_data.get('seq_schedule', '5 mins').lower()
+            delay_minutes = 0
+            delay_seconds = None
+            try:
+                parts = seq_schedule.split()
+                if len(parts) >= 2:
+                    amount = int(parts[0])
+                    unit = parts[1]
+                    if 'sec' in unit:
+                        delay_seconds = amount
+                    elif 'min' in unit:
+                        delay_minutes = amount
+                    elif 'hour' in unit:
+                        delay_minutes = amount * 60
+                    elif 'day' in unit:
+                        delay_minutes = amount * 60 * 24
+            except Exception:
+                pass
+                
+            if delay_seconds is not None:
+                node_data['delay_seconds'] = delay_seconds
+            msg_type = node_data.get('seq_message_type', 'regular')
+            
+            # Use the node's name as the message body if they renamed it (e.g. 'hi')
+            msg_body = target_node.get('name', 'Sequence Message')
+            if msg_body.lower() == 'send message after':
+                msg_body = 'Sequence Message'
+                
+            # If there's a connected text node, grab its text. Also support the
+            # pattern: send_message_after -> Text Node -> send_message_after (chained).
+            child_outputs = target_node.get('outputs', {})
+            child_next = child_outputs.get('next', {})
+            child_conns = child_next.get('connections', [])
+            next_chain_target = None
+            if child_conns:
+                child_id = str(child_conns[0].get('node'))
+                child_node = nodes_dict.get(child_id)
+                if child_node and 'text' in child_node.get('type', '').lower():
+                    child_text = child_node.get('data', {}).get('textMessage') or child_node.get('data', {}).get('text')
+                    if child_text:
+                        msg_body = child_text
+
+                    # Check if the text node then points to another send_message_after
+                    grand_next = child_node.get('outputs', {}).get('next', {}).get('connections', [])
+                    if grand_next:
+                        grand_target_id = str(grand_next[0].get('node'))
+                        grand_target_node = nodes_dict.get(grand_target_id)
+                        if grand_target_node:
+                            gt_type = grand_target_node.get('type', '')
+                            if gt_type == 'send_message_after' or gt_type.startswith('Send_message_after'):
+                                next_chain_target = grand_target_id
+
+            # Save a reference to the flow and connected child node so the scheduler can
+            # execute the connected live-flow nodes immediately after sending the
+            # scheduled sequence message. We augment node_data with metadata keys
+            # used by the task runner.
+            if child_conns:
+                node_data = dict(node_data or {})
+                node_data['_flow_pk'] = flow.pk
+                node_data['_sequence_send_node_id'] = target_id
+                node_data['_child_next_node_id'] = child_id
+
+            step, _ = SequenceStep.objects.update_or_create(
+                sequence=sequence,
+                order=order,
+                defaults={
+                    'delay_minutes': delay_minutes,
+                    'message_type': msg_type,
+                    'message_body': msg_body,
+                    'data': node_data
+                }
+            )
+            valid_step_ids.append(step.id)
+            # Determine the next node to continue from:
+            # 1) If the text node pointed to a next send node, follow that.
+            # 2) Else, if the current target send_node's outputs.next points
+            #    directly to another send node, follow that.
+            # 3) Otherwise stop.
+            if next_chain_target:
+                current_node_id = next_chain_target
+            else:
+                # check direct next from target_node
+                t_next = target_node.get('outputs', {}).get('next', {}).get('connections', [])
+                if t_next:
+                    dir_next_id = str(t_next[0].get('node'))
+                    dir_next_node = nodes_dict.get(dir_next_id)
+                    if dir_next_node:
+                        d_type = dir_next_node.get('type', '')
+                        if d_type == 'send_message_after' or d_type.startswith('Send_message_after'):
+                            current_node_id = dir_next_id
+                        else:
+                            break
+                    else:
+                        break
+                else:
+                    break
+            order += 1
+            
+        SequenceStep.objects.filter(sequence=sequence).exclude(id__in=valid_step_ids).delete()
+
+class ChatbotFlowListCreateAPIView(ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ChatbotFlowSerializer
+
+    def get_queryset(self):
+        queryset = ChatbotFlow.objects.filter(vendor=self.request.user.vendor).order_by('-created_at')
+        has_sequence = self.request.query_params.get('has_sequence')
+        search = self.request.query_params.get('search')
+
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        if has_sequence and str(has_sequence).lower() in ('1', 'true', 'yes', 'on'):
+            # Filter flows that contain at least one sequence campaign node.
+            return [flow for flow in queryset if self._flow_contains_sequence(flow)]
+
+        return queryset
+
+    def _flow_contains_sequence(self, flow):
+        flow_data = flow.flow_data or {}
+        nodes = flow_data.get('nodes', {}) if isinstance(flow_data, dict) else {}
+        if isinstance(nodes, list):
+            nodes = {str(node.get('id', '')): node for node in nodes}
+
+        for node in nodes.values():
+            node_type = str(node.get('type', '')).lower()
+            if node_type == 'new_sequence_campaign' or node_type.startswith('new_sequence_campaign') or 'sequence campaign' in node_type:
+                return True
+        return False
+
+    def perform_create(self, serializer):
+        flow = serializer.save(vendor=self.request.user.vendor)
+        sync_sequences_from_flow(flow)
+
+class ChatbotFlowDetailAPIView(RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = ChatbotFlowSerializer
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        return ChatbotFlow.objects.filter(vendor=self.request.user.vendor)
+
+    def perform_update(self, serializer):
+        flow = serializer.save()
+        sync_sequences_from_flow(flow)
+
+
+# ─────────────────────────────────────────────────────────────
+# TEMPLATE VARIABLES — list/create/delete
+# ─────────────────────────────────────────────────────────────
+from .models import TemplateVariable
+from .serializers import TemplateVariableSerializer
+
+class TemplateVariableListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        variables = TemplateVariable.objects.filter(vendor=request.user.vendor)
+        serializer = TemplateVariableSerializer(variables, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        name = request.data.get('name', '').strip()
+        if not name:
+            return Response({'error': 'Variable name is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if TemplateVariable.objects.filter(vendor=request.user.vendor, name=name).exists():
+            return Response({'error': f'Variable "{name}" already exists.'}, status=status.HTTP_400_BAD_REQUEST)
+        variable = TemplateVariable.objects.create(vendor=request.user.vendor, name=name)
+        serializer = TemplateVariableSerializer(variable)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class TemplateVariableDetailAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        try:
+            variable = TemplateVariable.objects.get(pk=pk, vendor=request.user.vendor)
+            variable.delete()
+            return Response({'success': True}, status=status.HTTP_204_NO_CONTENT)
+        except TemplateVariable.DoesNotExist:
+            return Response({'error': 'Not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+
+
+from .models import Sequence
+from .serializers import SequenceSerializer
+
+class SequenceListCreateAPIView(ListCreateAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SequenceSerializer
+
+    def get_queryset(self):
+        return Sequence.objects.filter(vendor=self.request.user.vendor).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(vendor=self.request.user.vendor)
+
+class SequenceDetailAPIView(RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = SequenceSerializer
+    lookup_field = 'pk'
+
+    def get_queryset(self):
+        return Sequence.objects.filter(vendor=self.request.user.vendor)
+
+# -----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
+from .models import CustomField
+from .serializers import CustomFieldSerializer
+from rest_framework import generics
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
+class SystemFieldListAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        system_fields = [
+            {"label": "Phone Number (wa_id)", "value": "phone"},
+            {"label": "Name", "value": "full_name"},
+            {"label": "Email", "value": "email"},
+            {"label": "Label", "value": "label"},
+            {"label": "Last Messaged At", "value": "last_messaged_at"},
+            {"label": "Unread Messages Count", "value": "unread_messages_count"}
+        ]
+        return Response(system_fields)
+
+class CustomFieldListCreateAPIView(generics.ListCreateAPIView):
+    serializer_class = CustomFieldSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return CustomField.objects.filter(vendor=self.request.user.vendor)
+
+    def perform_create(self, serializer):
+        serializer.save(vendor=self.request.user.vendor)
+
+class CustomFieldDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = CustomFieldSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return CustomField.objects.filter(vendor=self.request.user.vendor)
+
+from .models import ContactLabel
+from .serializers import ContactLabelSerializer
+
+class ContactLabelListCreateAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = request.user.vendor
+        # Fetch distinct labels from Contact model
+        contact_labels = set(Contact.objects.filter(vendor=vendor).exclude(label__isnull=True).exclude(label='').values_list('label', flat=True).distinct())
+        # Fetch explicitly created labels
+        saved_labels = set(ContactLabel.objects.filter(vendor=vendor).values_list('name', flat=True))
+        
+        # Combine and sort
+        all_labels = sorted(list(contact_labels.union(saved_labels)))
+        data = [{'id': label, 'name': label} for label in all_labels]
+        return Response(data)
+
+    def post(self, request):
+        name = request.data.get('name')
+        if name:
+            obj, created = ContactLabel.objects.get_or_create(vendor=request.user.vendor, name=name)
+            return Response({'id': obj.name, 'name': obj.name}, status=201)
+        return Response({'error': 'Name is required'}, status=400)
+
+class ContactLabelDetailAPIView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ContactLabelSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ContactLabel.objects.filter(vendor=self.request.user.vendor)

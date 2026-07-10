@@ -32,26 +32,23 @@ class Vendor(models.Model):
     def __str__(self):
         return self.name
 
-class GlobalSetting(models.Model):
-    uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
-    key = models.CharField(max_length=255, unique=True)
-    value = models.TextField()
-    is_secret = models.BooleanField(default=False)
+# class GlobalSetting(models.Model):
+#     uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+#     key = models.CharField(max_length=255, unique=True)
+#     value = models.TextField()
+#     is_secret = models.BooleanField(default=False)
     
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#     updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.key
+#     def __str__(self):
+#         return self.key
 
 class User(AbstractUser):
     uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     role = models.CharField(max_length=50, default='agent') # admin, agent, staff
-    
-    # Multi-tenancy link
     vendor = models.ForeignKey(Vendor, on_delete=models.CASCADE, related_name='users', null=True, blank=True)
-    
     is_active = models.BooleanField(default=True)
 
     def __str__(self):

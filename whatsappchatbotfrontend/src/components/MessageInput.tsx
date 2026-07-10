@@ -40,7 +40,6 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   onStartRecording,
   onStopRecording,
   onCancelRecording,
-  activeContact,
   micError,
   onMicErrorClose,
 }) => {

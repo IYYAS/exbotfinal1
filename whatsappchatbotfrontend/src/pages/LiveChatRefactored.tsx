@@ -32,7 +32,7 @@ const LiveChat: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddContact, setShowAddContact] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [showCreateTemplate, setShowCreateTemplate] = useState(false);
+  // const [showCreateTemplate, setShowCreateTemplate] = useState(false);
   const [templateImageUrl, setTemplateImageUrl] = useState('');
 
   // Message interaction states

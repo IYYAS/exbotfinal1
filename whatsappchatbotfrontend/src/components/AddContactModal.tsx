@@ -1,6 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import type { ContactInfo } from '../types';
+
 
 interface AddContactModalProps {
   isOpen: boolean;

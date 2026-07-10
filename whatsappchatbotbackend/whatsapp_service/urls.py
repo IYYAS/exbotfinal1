@@ -4,10 +4,14 @@ from .views import (
     ContactListAPIView, ContactDetailAPIView, MessageListAPIView, TemplateListAPIView,
     TemplateSyncAPIView, MediaUploadAPIView, SendMessageAPIView, SendTemplateAPIView, SendReactionAPIView,
     SendLocationMessageView, TemplateCreateAPIView, TemplateDeleteAPIView,
-    #   SendDocumentMessageAPIView, SendAudioMessageAPIView, SendVideoMessageAPIView,
-    # SendImageMessageAPIView,SendTextMessageAPIView,
+    SendInteractiveButtonAPIView, TemplateMediaUploadAPIView,
 ) 
 
+from .views import ChatbotFlowListCreateAPIView, ChatbotFlowDetailAPIView
+from .views import TemplateVariableListCreateAPIView, TemplateVariableDetailAPIView
+from .views import SequenceListCreateAPIView, SequenceDetailAPIView
+from .views import SystemFieldListAPIView, CustomFieldListCreateAPIView, CustomFieldDetailAPIView
+from .views import ContactLabelListCreateAPIView, ContactLabelDetailAPIView
 
 urlpatterns = [
     path('settings/', SettingsAPIView.as_view(), name='whatsapp-settings'),
@@ -22,15 +26,30 @@ urlpatterns = [
     path('templates/sync/', TemplateSyncAPIView.as_view(), name='whatsapp-templates-sync'),
     path('templates/create/', TemplateCreateAPIView.as_view(), name='whatsapp-templates-create'),
     path('templates/<str:template_name>/delete/', TemplateDeleteAPIView.as_view(), name='whatsapp-templates-delete'),
+    path('templates/media/upload/', TemplateMediaUploadAPIView.as_view(), name='whatsapp-template-media-upload'),
     path('media/upload/', MediaUploadAPIView.as_view(), name='whatsapp-media-upload'),
     path('send/', SendMessageAPIView.as_view(), name='whatsapp-send'),
     path('send-template/', SendTemplateAPIView.as_view(), name='whatsapp-send-template'),
     path('send-reaction/', SendReactionAPIView.as_view(), name='whatsapp-send-reaction'),
     path('send-location/', SendLocationMessageView.as_view(), name='whatsapp-send-location'),
-    # path('send-document/', SendDocumentMessageAPIView.as_view(), name='whatsapp-send-document'),
-    # path('send-audio/', SendAudioMessageAPIView.as_view(), name='whatsapp-send-audio'),
-    # path('send-video/', SendVideoMessageAPIView.as_view(), name='whatsapp-send-video'),
-    # path('send-image/', SendImageMessageAPIView.as_view(), name='whatsapp-send-image'),
-    # path('send-text/', SendTextMessageAPIView.as_view(), name='whatsapp-send-text')
+    path('send-interactive-buttons/', SendInteractiveButtonAPIView.as_view(), name='whatsapp-send-interactive-buttons'),
 
+    # Chatbot Flow APIs
+    path('flows/', ChatbotFlowListCreateAPIView.as_view(), name='chatbot-flow-list-create'),
+    path('flows/<int:pk>/', ChatbotFlowDetailAPIView.as_view(), name='chatbot-flow-detail'),
+
+    # Template Variable APIs
+    path('template-variables/', TemplateVariableListCreateAPIView.as_view(), name='template-variable-list-create'),
+    path('template-variables/<int:pk>/', TemplateVariableDetailAPIView.as_view(), name='template-variable-detail'),
+    path('sequences/', SequenceListCreateAPIView.as_view()),
+    path('sequences/<int:pk>/', SequenceDetailAPIView.as_view()),
+    
+    # Fields APIs
+    path('system-fields/', SystemFieldListAPIView.as_view(), name='system-field-list'),
+    path('custom-fields/', CustomFieldListCreateAPIView.as_view(), name='custom-field-list-create'),
+    path('custom-fields/<int:pk>/', CustomFieldDetailAPIView.as_view(), name='custom-field-detail'),
+    
+    # Label APIs
+    path('labels/', ContactLabelListCreateAPIView.as_view(), name='contact-label-list-create'),
+    path('labels/<int:pk>/', ContactLabelDetailAPIView.as_view(), name='contact-label-detail'),
 ]

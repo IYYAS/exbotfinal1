@@ -6,20 +6,30 @@ import Register from './pages/Register';
 import DashboardLayout from './components/DashboardLayout';
 import ConnectAccount from './pages/ConnectAccount';
 import LiveChat from './pages/LiveChatRefactored';
-import TemplateManager from './pages/TemplateManager';
+import Contacts from './pages/Contacts';
+
+import BotManager from './pages/BotManager';
+import FlowBuilder from './pages/FlowBuilder';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <p>Loading...</p>
+    </div>;
+  }
+
   return isAuthenticated ? <>{children}</> : <Navigate to="/login" />;
 };
 
 const Dashboard = () => {
   const { user } = useAuth();
   return (
-    <div style={{ 
-      background: 'var(--surface-color)', 
-      border: '1px solid var(--border-color)', 
-      borderRadius: '12px', 
+    <div style={{
+      background: 'var(--surface-color)',
+      border: '1px solid var(--border-color)',
+      borderRadius: '12px',
       padding: '40px',
       boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)',
       maxWidth: '600px'
@@ -30,12 +40,12 @@ const Dashboard = () => {
       <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
         Welcome to your WhatsApp Chatbot management system.
       </p>
-      
+
       {user?.vendor && (
-        <div style={{ 
-          background: 'var(--bg-color)', 
-          border: '1px solid var(--border-color)', 
-          borderRadius: '8px', 
+        <div style={{
+          background: 'var(--bg-color)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '8px',
           padding: '16px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -50,12 +60,20 @@ const Dashboard = () => {
 };
 
 const AppRoutes = () => {
+  const { isLoading } = useAuth();
+
+  if (isLoading) {
+    return <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <p>Initializing...</p>
+    </div>;
+  }
+
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route 
-        path="/" 
+      <Route
+        path="/"
         element={
           <PrivateRoute>
             <DashboardLayout />
@@ -65,10 +83,20 @@ const AppRoutes = () => {
         <Route index element={<Dashboard />} />
         <Route path="whatsapp/connect" element={<ConnectAccount />} />
         <Route path="chat" element={<LiveChat />} />
-        <Route path="templates" element={<TemplateManager />} />
+        <Route path="contacts" element={<Contacts />} />
+        <Route path="templates" element={<BotManager />} />
+        <Route path="bot-reply" element={<BotManager />} />
         {/* Mock other subpages back to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
+      <Route
+        path="flow-builder/:id"
+        element={
+          <PrivateRoute>
+            <FlowBuilder />
+          </PrivateRoute>
+        }
+      />
     </Routes>
   );
 };

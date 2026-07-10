@@ -1,5 +1,5 @@
 import React from 'react';
-import { Terminal, Trash2, CornerUpLeft, X } from 'lucide-react';
+import { Terminal, Trash2, CornerUpLeft } from 'lucide-react';
 import type { MessageLog } from '../types';
 
 interface ContextMenuProps {
@@ -16,7 +16,6 @@ interface ContextMenuProps {
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
 export const ContextMenu: React.FC<ContextMenuProps> = ({
-  message,
   x,
   y,
   onReaction,

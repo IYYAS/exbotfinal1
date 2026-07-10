@@ -10,11 +10,12 @@ class WhatsAppClient:
     Ported from the Laravel WhatsAppApiService.
     """
 
-    def __init__(self, vendor=None, access_token=None, phone_number_id=None, waba_id=None):
+    def __init__(self, vendor=None, access_token=None, phone_number_id=None, waba_id=None, app_id=None):
         # 1. Initialize with passed-in values or None
         self.access_token = access_token
         self.phone_number_id = phone_number_id
         self.waba_id = waba_id
+        self.app_id = app_id
         
         # 2. If any are missing and vendor is provided, load from VendorSettings
         if vendor and (not self.access_token or not self.phone_number_id or not self.waba_id):
@@ -24,6 +25,7 @@ class WhatsAppClient:
                 self.access_token = self.access_token or v_settings.whatsapp_access_token
                 self.phone_number_id = self.phone_number_id or v_settings.whatsapp_phone_number_id
                 self.waba_id = self.waba_id or v_settings.whatsapp_business_account_id
+                self.app_id = self.app_id or v_settings.whatsapp_app_id
                 print(f"\n{'='*60}")
                 print(f"[WhatsAppClient] ✅ Credentials loaded from DB (VendorSettings)")
                 print(f"  Vendor         : {vendor}")
@@ -38,6 +40,7 @@ class WhatsAppClient:
         self.access_token = self.access_token or getattr(settings, 'WHATSAPP_ACCESS_TOKEN', None)
         self.phone_number_id = self.phone_number_id or getattr(settings, 'WHATSAPP_PHONE_NUMBER_ID', None)
         self.waba_id = self.waba_id or getattr(settings, 'WHATSAPP_BUSINESS_ACCOUNT_ID', None)
+        self.app_id = self.app_id or getattr(settings, 'WHATSAPP_APP_ID', None)
 
         if not vendor or not v_settings if 'v_settings' in dir() else True:
             print(f"\n{'='*60}")
@@ -57,7 +60,7 @@ class WhatsAppClient:
         """Fetch all message templates from Meta WABA."""
         if not self.waba_id:
             return {"error": "WHATSAPP_BUSINESS_ACCOUNT_ID not configured"}
-        return self._make_request("GET", f"{self.waba_id}/message_templates")
+        return self._make_request("GET", f"{self.waba_id}/message_templates", params={"fields": "name,language,status,category,components,rejected_reason"})
 
     def create_template(self, template_data):
         """Create a new message template in Meta WABA."""
@@ -112,6 +115,40 @@ class WhatsAppClient:
             "messaging_product": (None, "whatsapp")
         }
         return self._make_request("POST", f"{self.phone_number_id}/media", files=files)
+
+    def upload_resumable_media(self, file_content, file_type):
+        """Upload media using Resumable Upload API for templates (returns header_handle)."""
+        if not self.app_id:
+            return {"error": "WHATSAPP_APP_ID not configured"}
+        
+        # Step 1: Create session
+        session_url = f"{self.base_url}{self.app_id}/uploads"
+        params = {
+            "file_length": len(file_content),
+            "file_type": file_type
+        }
+        headers = self.headers.copy()
+        
+        try:
+            res = httpx.post(session_url, headers=headers, params=params)
+            res.raise_for_status()
+            session_data = res.json()
+            session_id = session_data.get('id')
+            if not session_id:
+                return {"error": f"Failed to get upload session id. Response: {session_data}"}
+            
+            # Step 2: Upload bytes
+            upload_url = f"{self.base_url}{session_id}"
+            upload_headers = {
+                "Authorization": f"OAuth {self.access_token}",
+                "file_offset": "0"
+            }
+            res_upload = httpx.post(upload_url, headers=upload_headers, content=file_content)
+            res_upload.raise_for_status()
+            return res_upload.json()
+        except httpx.HTTPError as e:
+            logger.error(f"Resumable media upload error: {str(e)}")
+            return {"error": str(e), "details": getattr(e, 'response', None) and e.response.text}
 
     def get_media_url(self, media_id):
         """Get the temporary URL to download a media file."""
@@ -189,6 +226,26 @@ class WhatsAppClient:
         if reply_to_message_id:
             payload["context"] = {"message_id": reply_to_message_id}
         return self._make_request("POST", f"{self.phone_number_id}/messages", payload)
+
+    def send_cta_url_button(self, to_number, body_text, button_text, button_url, header_text=None, footer_text=None, reply_to_message_id=None):
+        """Send a Call-To-Action (CTA) URL button."""
+        interactive_data = {
+            "type": "cta_url",
+            "body": {"text": body_text},
+            "action": {
+                "name": "cta_url",
+                "parameters": {
+                    "display_text": button_text,
+                    "url": button_url
+                }
+            }
+        }
+        if header_text:
+            interactive_data["header"] = {"type": "text", "text": header_text}
+        if footer_text:
+            interactive_data["footer"] = {"text": footer_text}
+            
+        return self.send_interactive_message(to_number, interactive_data, reply_to_message_id)
 
     def send_media_message(self, to_number, media_type, media_url=None, media_id=None, caption=None, reply_to_message_id=None, voice=False, filename=None):
         """Send media (image, video, document, audio) using either a URL or a media_id."""

@@ -40,6 +40,7 @@ const ConnectAccount: React.FC = () => {
   const [formData, setFormData] = useState({
     whatsapp_business_account_id: '',
     whatsapp_access_token: '',
+    whatsapp_app_id: '',
   });
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -59,6 +60,7 @@ const ConnectAccount: React.FC = () => {
         setFormData({
           whatsapp_business_account_id: res.data.whatsapp_business_account_id || '',
           whatsapp_access_token: res.data.whatsapp_access_token || '',
+          whatsapp_app_id: res.data.whatsapp_app_id || '',
         });
 
         if (res.data.whatsapp_business_account_id && res.data.whatsapp_access_token) {
@@ -145,6 +147,7 @@ const ConnectAccount: React.FC = () => {
       setFormData({
         whatsapp_business_account_id: '',
         whatsapp_access_token: '',
+        whatsapp_app_id: '',
       });
       setAccountStatus(null);
       setMessage({ type: 'success', text: 'Account disconnected successfully.' });
@@ -428,6 +431,20 @@ const ConnectAccount: React.FC = () => {
                   className="form-input"
                   required
                 />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" htmlFor="whatsapp_app_id">WhatsApp App ID</label>
+                <input 
+                  id="whatsapp_app_id"
+                  type="text"
+                  name="whatsapp_app_id"
+                  value={formData.whatsapp_app_id}
+                  onChange={handleChange}
+                  placeholder="e.g. 2130492944393319"
+                  className="form-input"
+                />
+                <small style={{ color: 'var(--text-secondary)', fontSize: 11, marginTop: 4, display: 'block' }}>Required for creating templates with image/video/document headers.</small>
               </div>
 
               <div className="form-group">
