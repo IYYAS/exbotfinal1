@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api';
 import { UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -32,7 +32,7 @@ const Register: React.FC = () => {
                 ...formData
             };
             
-            const response = await axios.post('http://localhost:8000/api/users/register/', payload);
+            const response = await api.post('/users/register/', payload);
             
             // Auto login after successful registration
             login(response.data.access, response.data.user);
