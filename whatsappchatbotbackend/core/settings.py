@@ -132,7 +132,25 @@ MEDIA_ROOT = BASE_DIR
 AUTH_USER_MODEL = 'users.User'
 
 # CORS Config
-CORS_ALLOW_ALL_ORIGINS = True
+# For credentialed requests it's safer to explicitly list allowed origins
+CORS_ALLOW_ALL_ORIGINS = False
+
+# Replace or extend these with your frontend origins (Vercel + local dev)
+CORS_ALLOWED_ORIGINS = [
+    'https://exbotfinal1-yxx4.vercel.app',
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://localhost:3000',
+]
+# Allow Authorization header and credentials for cross-origin requests
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    'authorization',
+]
+
+# If your frontend sends cookies or uses credentials, set this to True
+CORS_ALLOW_CREDENTIALS = True
 
 # DRF & JWT Config
 REST_FRAMEWORK = {
