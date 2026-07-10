@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-export const BACKEND_URL = 'http://localhost:8000';
+// Use environment variable if available, otherwise use ngrok URL for production
+export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://lanette-unmonarchic-contradictorily.ngrok-free.dev';
 export const NGROK_URL = 'https://lanette-unmonarchic-contradictorily.ngrok-free.dev';
 const API_BASE_URL = `${BACKEND_URL}/api`;
 
