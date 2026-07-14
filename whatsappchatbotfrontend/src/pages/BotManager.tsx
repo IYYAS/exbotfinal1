@@ -72,7 +72,7 @@ const CreateFlowModal: React.FC<{ onClose: () => void; onCreate: (name: string) 
         <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && name.trim() && handle()} placeholder="e.g. Welcome Flow..." style={{ width: '100%', padding: '10px 14px', background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 14, outline: 'none', boxSizing: 'border-box', marginBottom: 24 }} />
         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
           <button onClick={onClose} style={{ padding: '9px 20px', borderRadius: 8, border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: 13 }}>Cancel</button>
-          <button disabled={!name.trim() || creating} onClick={handle} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: name.trim() ? 'linear-gradient(135deg,#3b82f6,#8b5cf6)' : '#374151', color: name.trim() ? '#fff' : '#6b7280', cursor: name.trim() ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button disabled={!name.trim() || creating} onClick={handle} style={{ padding: '9px 20px', borderRadius: 8, border: 'none', background: name.trim() ? 'var(--accent-gradient)' : '#374151', color: name.trim() ? '#fff' : '#6b7280', cursor: name.trim() ? 'pointer' : 'not-allowed', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
             {creating ? <RefreshCw size={14} /> : <Plus size={14} />}{creating ? 'Creating...' : 'Create Flow'}
           </button>
         </div>
@@ -100,10 +100,10 @@ const DetailDrawer: React.FC<{ flow: ChatbotFlow | null; onClose: () => void }> 
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '16px 24px', borderBottom: '1px solid var(--border-color)' }}>
           {[
-            { label: 'Status', value: flow.is_active ? 'Active' : 'Inactive', icon: flow.is_active ? <CheckCircle2 size={14} color="#34d399" /> : <XCircle size={14} color="#ef4444" />, color: flow.is_active ? '#34d399' : '#ef4444' },
-            { label: 'Flow ID', value: `#${flow.id}`, icon: <Zap size={14} color="#60a5fa" />, color: '#60a5fa' },
-            { label: 'Created', value: formatDate(flow.created_at), icon: <Clock size={14} color="#a78bfa" />, color: '#a78bfa' },
-            { label: 'Updated', value: formatDate(flow.updated_at), icon: <Clock size={14} color="#f59e0b" />, color: '#f59e0b' },
+            { label: 'Status', value: flow.is_active ? 'Active' : 'Inactive', icon: flow.is_active ? <CheckCircle2 size={14} color="var(--success-color)" /> : <XCircle size={14} color="var(--danger-color)" />, color: flow.is_active ? 'var(--success-color)' : 'var(--danger-color)' },
+            { label: 'Flow ID', value: `#${flow.id}`, icon: <Zap size={14} color="var(--info-color)" />, color: 'var(--info-color)' },
+            { label: 'Created', value: formatDate(flow.created_at), icon: <Clock size={14} color="var(--purple-color)" />, color: 'var(--purple-color)' },
+            { label: 'Updated', value: formatDate(flow.updated_at), icon: <Clock size={14} color="var(--warning-color)" />, color: 'var(--warning-color)' },
           ].map(item => (
             <div key={item.label} style={{ background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '12px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>{item.icon}<span style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{item.label}</span></div>
@@ -121,11 +121,11 @@ const DetailDrawer: React.FC<{ flow: ChatbotFlow | null; onClose: () => void }> 
           ) : showRaw ? (
             <pre style={{ background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 10, padding: 16, fontSize: 12, color: '#e2e8f0', overflowX: 'auto', lineHeight: 1.6, margin: 0 }}>{JSON.stringify(flow.flow_data, null, 2)}</pre>
           ) : (
-            <div style={{ background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 10, padding: 16, fontFamily: 'monospace' }}><JsonNode data={flow.flow_data} /></div>
+            <div style={{ background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 10, padding: 16, fontFamily: 'var(--font-family)' }}><JsonNode data={flow.flow_data} /></div>
           )}
         </div>
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)' }}>
-          <button onClick={() => navigate(`/flow-builder/${flow.id}`)} style={{ width: '100%', padding: 10, background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Edit2 size={14} /> Edit in Flow Builder</button>
+          <button onClick={() => navigate(`/flow-builder/${flow.id}`)} style={{ width: '100%', padding: 10, background: 'var(--accent-gradient)', border: 'none', borderRadius: 8, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}><Edit2 size={14} /> Edit in Flow Builder</button>
         </div>
       </div>
     </div>
@@ -202,7 +202,7 @@ const BotReplyPanel: React.FC = () => {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search flows..." style={{ width: '100%', padding: '7px 10px 7px 30px', background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-primary)', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
         </div>
         <button onClick={fetchFlows} style={{ padding: '7px 10px', background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}><RefreshCw size={14} /></button>
-        <button onClick={() => setShowCreate(true)} style={{ padding: '7px 14px', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}><Plus size={13} /> Create</button>
+        <button onClick={() => setShowCreate(true)} style={{ padding: '7px 14px', background: 'var(--accent-gradient)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600 }}><Plus size={13} /> Create</button>
       </div>
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0 }}>
@@ -218,7 +218,7 @@ const BotReplyPanel: React.FC = () => {
                 <div style={{ padding: '50px', textAlign: 'center' }}>
                   <Bot size={36} color="#374151" style={{ marginBottom: 12 }} />
                   <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No flows found</p>
-                  <button onClick={() => setShowCreate(true)} style={{ marginTop: 10, padding: '9px 18px', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={13} /> Create Flow</button>
+                  <button onClick={() => setShowCreate(true)} style={{ marginTop: 10, padding: '9px 18px', background: 'var(--accent-gradient)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Plus size={13} /> Create Flow</button>
                 </div>
               ) : currentFlows.map((flow, idx) => (
                 <div key={flow.id} onMouseEnter={() => setHoverRow(flow.id)} onMouseLeave={() => setHoverRow(null)} style={{ display: 'grid', gridTemplateColumns: '50px 1fr 160px 100px 110px', padding: '11px 20px', borderBottom: '1px solid var(--border-color)', alignItems: 'center', background: hoverRow === flow.id ? 'rgba(255,255,255,0.02)' : 'transparent', cursor: 'pointer' }} onClick={() => setSelectedFlow(flow)}>
@@ -229,7 +229,7 @@ const BotReplyPanel: React.FC = () => {
                   <div style={{ display: 'flex', gap: 5, justifyContent: 'center' }} onClick={e => e.stopPropagation()}>
                     <button onClick={() => setSelectedFlow(flow)} style={{ width: 26, height: 26, border: '1px solid var(--border-color)', borderRadius: 5, background: 'var(--bg-color)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Eye size={12} /></button>
                     <button onClick={() => navigate(`/flow-builder/${flow.id}`)} style={{ width: 26, height: 26, border: '1px solid var(--border-color)', borderRadius: 5, background: 'var(--bg-color)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Edit2 size={12} /></button>
-                    <button onClick={e => handleDelete(flow.id, e)} disabled={deletingId === flow.id} style={{ width: 26, height: 26, border: '1px solid rgba(248,113,113,0.3)', borderRadius: 5, background: 'rgba(248,113,113,0.08)', color: '#f87171', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{deletingId === flow.id ? <RefreshCw size={12} /> : <Trash2 size={12} />}</button>
+                    <button onClick={e => handleDelete(flow.id, e)} disabled={deletingId === flow.id} style={{ width: 26, height: 26, border: '1px solid var(--danger-border)', borderRadius: 5, background: 'var(--danger-bg-light)', color: 'var(--danger-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{deletingId === flow.id ? <RefreshCw size={12} /> : <Trash2 size={12} />}</button>
                   </div>
                 </div>
               ))}

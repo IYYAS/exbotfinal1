@@ -1,6 +1,7 @@
 import React from 'react';
 import { Terminal, ShieldCheck, X } from 'lucide-react';
 import type { MessageLog } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface JSONInspectorProps {
   message: MessageLog;
@@ -8,12 +9,13 @@ interface JSONInspectorProps {
 }
 
 export const JSONInspector: React.FC<JSONInspectorProps> = ({ message, onClose }) => {
+  const { isDarkMode } = useTheme();
   return (
     <div
       style={{
         width: '380px',
         borderLeft: '1px solid var(--border-color)',
-        background: 'rgba(255, 255, 255, 0.02)',
+        background: isDarkMode ? 'rgba(255, 255, 255, 0.02)' : 'rgba(59, 130, 246, 0.02)',
         display: 'flex',
         flexDirection: 'column',
         backdropFilter: 'blur(10px)',
@@ -27,7 +29,7 @@ export const JSONInspector: React.FC<JSONInspectorProps> = ({ message, onClose }
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          backgroundColor: 'rgba(0,0,0,0.2)',
+          backgroundColor: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(59, 130, 246, 0.1)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -103,16 +105,16 @@ export const JSONInspector: React.FC<JSONInspectorProps> = ({ message, onClose }
           style={{
             margin: 0,
             padding: '12px',
-            backgroundColor: '#111b21',
+            backgroundColor: isDarkMode ? '#111b21' : '#f0f9ff',
             border: '1px solid var(--border-color)',
             borderRadius: '8px',
-            color: '#34d399',
-            fontFamily: 'monospace',
+            color: isDarkMode ? '#34d399' : '#10b981',
+            fontFamily: 'var(--font-family)',
             fontSize: '11.5px',
             overflowX: 'auto',
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
-            boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)',
+            boxShadow: isDarkMode ? 'inset 0 2px 4px rgba(0,0,0,0.5)' : 'inset 0 2px 4px rgba(0,0,0,0.1)',
           }}
         >
           {JSON.stringify(message.data || { info: 'No raw payload details stored for this entry' }, null, 2)}

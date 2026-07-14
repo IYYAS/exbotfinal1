@@ -4,9 +4,10 @@ export interface ContactInfo {
   first_name: string;
   last_name?: string;
   email?: string;
-  label?: string;
-  unread_messages_count: number;
+  label?: string;  labels?: string[];  unread_messages_count: number;
   last_messaged_at?: string;
+  last_message_body?: string
+  last_message_sender?: 'Bot' | 'User' | null;
   created_at?: string;
   updated_at?: string;
 }

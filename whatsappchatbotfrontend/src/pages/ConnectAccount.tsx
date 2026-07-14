@@ -178,7 +178,7 @@ const ConnectAccount: React.FC = () => {
   }
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', fontFamily: '"Inter", sans-serif' }}>
+    <div style={{ maxWidth: '900px', margin: '0 auto', fontFamily: 'var(--font-family)' }}>
       
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: 'var(--text-primary)', marginBottom: '8px' }}>
@@ -193,12 +193,12 @@ const ConnectAccount: React.FC = () => {
         <div style={{ 
           padding: '16px', 
           borderRadius: '8px',
-          backgroundColor: message.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-          color: message.type === 'success' ? '#34d399' : '#f87171',
+          backgroundColor: message.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)',
+          color: message.type === 'success' ? 'var(--success-color)' : 'var(--danger-color)',
           display: 'flex', 
           alignItems: 'center', 
           gap: '12px',
-          border: `1px solid ${message.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+          border: `1px solid ${message.type === 'success' ? 'var(--success-border)' : 'var(--danger-border)'}`,
           marginBottom: '24px'
         }}>
           {message.type === 'success' ? <CheckCircle2 size={20} /> : <AlertCircle size={20} />}
@@ -252,7 +252,7 @@ const ConnectAccount: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', fontSize: '13px' }}>
               <span style={{ fontWeight: '600', color: 'var(--text-secondary)' }}>Permissions:</span>
               {(accountStatus.permissions || permissionsList).map((perm) => (
-                <span key={perm} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#34d399', background: 'rgba(52, 211, 153, 0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+                <span key={perm} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--success-color)', background: 'var(--success-bg-light)', padding: '2px 8px', borderRadius: '12px' }}>
                   <CheckCircle2 size={12} />
                   {perm}
                 </span>
@@ -266,8 +266,8 @@ const ConnectAccount: React.FC = () => {
                 gap: '4px', 
                 padding: '4px 10px', 
                 borderRadius: '12px', 
-                background: accountStatus.webhooks_subscribed ? 'rgba(52, 211, 153, 0.1)' : 'rgba(239, 68, 68, 0.1)', 
-                color: accountStatus.webhooks_subscribed ? '#34d399' : '#f87171', 
+                background: accountStatus.webhooks_subscribed ? 'var(--success-bg-light)' : 'var(--danger-bg-light)', 
+                color: accountStatus.webhooks_subscribed ? 'var(--success-color)' : 'var(--danger-color)', 
                 fontWeight: '600' 
               }}>
                 {accountStatus.webhooks_subscribed ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />} 
@@ -332,7 +332,7 @@ const ConnectAccount: React.FC = () => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
                         <CheckCircle2 size={14} /> Number ID:
                       </div>
-                      <div style={{ fontFamily: 'monospace', color: 'var(--text-secondary)' }}>{phone.id}</div>
+                      <div style={{ fontFamily: 'var(--font-family)', color: 'var(--text-secondary)' }}>{phone.id}</div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-secondary)' }}>
                         <Star size={14} /> Quality:
@@ -524,19 +524,19 @@ const ConnectAccount: React.FC = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', fontSize: '13px' }}>
                 <div>
                   <div style={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Webhook Callback URL</div>
-                  <div style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'monospace' }}>{webhookUrl}</div>
+                  <div style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'var(--font-family)' }}>{webhookUrl}</div>
                 </div>
                 <div>
                   <div style={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Verify Token</div>
-                  <div style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{verifyToken}</div>
+                  <div style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-family)' }}>{verifyToken}</div>
                 </div>
                 <div>
                   <div style={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Privacy Policy URL</div>
-                  <div style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'monospace' }}>{privacyUrl}</div>
+                  <div style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'var(--font-family)' }}>{privacyUrl}</div>
                 </div>
                 <div>
                   <div style={{ color: 'var(--text-secondary)', marginBottom: '4px', fontWeight: '500' }}>Terms of Service URL</div>
-                  <div style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'monospace' }}>{termsUrl}</div>
+                  <div style={{ color: 'var(--text-primary)', wordBreak: 'break-all', fontFamily: 'var(--font-family)' }}>{termsUrl}</div>
                 </div>
               </div>
             </div>

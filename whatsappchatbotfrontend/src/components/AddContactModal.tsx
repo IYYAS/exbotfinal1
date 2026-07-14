@@ -86,7 +86,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               onChange={(e) => onNameChange(e.target.value)}
               style={{
                 width: '100%',
-                background: 'rgba(255,255,255,0.04)',
+                background: 'var(--input-bg)',
                 border: '1px solid var(--border-color)',
                 borderRadius: '8px',
                 padding: '10px',
@@ -108,7 +108,7 @@ export const AddContactModal: React.FC<AddContactModalProps> = ({
               onChange={(e) => onPhoneChange(e.target.value)}
               style={{
                 width: '100%',
-                background: 'rgba(255,255,255,0.04)',
+                background: 'var(--input-bg)',
                 border: '1px solid var(--border-color)',
                 borderRadius: '8px',
                 padding: '10px',

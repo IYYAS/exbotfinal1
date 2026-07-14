@@ -1,25 +1,30 @@
 import React from 'react';
-import { Sparkles, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import type { ContactInfo } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface ChatHeaderProps {
   activeContact: ContactInfo | null;
-  onShowTemplates: () => void;
   onDeleteChat: () => void;
+  onBlockToggle: () => void;
+  isBlocked: boolean;
+  isBlocking?: boolean;
 }
 
-export const ChatHeader: React.FC<ChatHeaderProps> = ({ activeContact, onShowTemplates, onDeleteChat }) => {
+export const ChatHeader: React.FC<ChatHeaderProps> = ({ activeContact, onDeleteChat, onBlockToggle, isBlocked, isBlocking = false }) => {
+  const { isDarkMode } = useTheme();
   if (!activeContact) return null;
 
   return (
     <div
       style={{
         padding: '10px 20px',
-        background: '#202c33',
+        background: 'var(--surface-color)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        borderBottom: '1px solid rgba(255,255,255,0.05)',
+        borderBottom: '1px solid var(--border-color)',
+        fontFamily: 'var(--font-family)',
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -28,8 +33,8 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ activeContact, onShowTem
             width: '40px',
             height: '40px',
             borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            color: '#ffffff',
+            backgroundColor: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(59, 130, 246, 0.1)',
+            color: 'var(--text-primary)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -42,28 +47,43 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ activeContact, onShowTem
           <div style={{ fontWeight: 'bold', fontSize: '15px', color: 'var(--text-primary)' }}>
             {activeContact.first_name} {activeContact.last_name || ''}
           </div>
-          <div style={{ fontSize: '12px', color: '#8696a0' }}>Online · +{activeContact.wa_id}</div>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Online · +{activeContact.wa_id}</div>
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: '12px' }}>
         <button
-          onClick={onShowTemplates}
+          onClick={onBlockToggle}
+          disabled={isBlocking}
           style={{
-            backgroundColor: 'rgba(255,255,255,0.05)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-            padding: '6px 12px',
-            borderRadius: '8px',
+            backgroundColor: isBlocked ? 'rgba(239, 68, 68, 0.16)' : 'rgba(59, 130, 246, 0.12)',
+            border: isBlocked ? '1px solid rgba(239, 68, 68, 0.24)' : '1px solid rgba(59, 130, 246, 0.25)',
+            color: isBlocked ? '#ef4444' : '#2563eb',
+            padding: '8px 12px',
+            borderRadius: '12px',
             fontSize: '12px',
             fontWeight: '600',
+            fontFamily: 'var(--font-family)',
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '6px',
-            cursor: 'pointer',
+            cursor: isBlocking ? 'not-allowed' : 'pointer',
+            opacity: isBlocking ? 0.7 : 1,
+            transition: '0.2s',
+          }}
+          onMouseOver={(e) => {
+            if (!isBlocking) {
+              e.currentTarget.style.backgroundColor = isBlocked ? 'rgba(239, 68, 68, 0.24)' : 'rgba(59, 130, 246, 0.18)';
+            }
+          }}
+          onMouseOut={(e) => {
+            if (!isBlocking) {
+              e.currentTarget.style.backgroundColor = isBlocked ? 'rgba(239, 68, 68, 0.16)' : 'rgba(59, 130, 246, 0.12)';
+            }
           }}
         >
-          <Sparkles size={14} color="#e3a008" /> Send Template
+          <span>{isBlocking ? (isBlocked ? 'Unblocking...' : 'Blocking...') : isBlocked ? 'Unblock' : 'Block'}</span>
         </button>
 
         <button
@@ -76,6 +96,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({ activeContact, onShowTem
             borderRadius: '8px',
             fontSize: '12px',
             fontWeight: '600',
+            fontFamily: 'var(--font-family)',
             display: 'flex',
             alignItems: 'center',
             gap: '6px',

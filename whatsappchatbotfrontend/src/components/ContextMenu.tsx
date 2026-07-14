@@ -1,6 +1,7 @@
 import React from 'react';
 import { Terminal, Trash2, CornerUpLeft } from 'lucide-react';
 import type { MessageLog } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface ContextMenuProps {
   message: MessageLog;
@@ -9,7 +10,9 @@ interface ContextMenuProps {
   onReaction: (emoji: string) => void;
   onReply: () => void;
   onCopy: () => void;
+  onShowCaption: () => void;
   onViewPayload: () => void;
+  onDelete: () => void;
   onClose: () => void;
 }
 
@@ -20,10 +23,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
   y,
   onReaction,
   onReply,
+  onShowCaption,
   onCopy,
   onViewPayload,
+  onDelete,
   onClose,
 }) => {
+  const { isDarkMode } = useTheme();
   return (
     <>
       {/* Overlay */}
@@ -43,12 +49,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           top: Math.min(y, window.innerHeight - 320),
           left: Math.min(x, window.innerWidth - 220),
           zIndex: 200,
-          background: '#233138',
+          background: isDarkMode ? '#233138' : '#ffffff',
           borderRadius: '14px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+          boxShadow: isDarkMode ? '0 8px 32px rgba(0,0,0,0.5)' : '0 8px 32px rgba(0,0,0,0.1)',
           overflow: 'hidden',
           minWidth: '200px',
-          border: '1px solid rgba(255,255,255,0.06)',
+          border: isDarkMode ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.1)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -59,8 +65,8 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             alignItems: 'center',
             justifyContent: 'space-around',
             padding: '10px 12px',
-            borderBottom: '1px solid rgba(255,255,255,0.07)',
-            background: '#1d2b33',
+            borderBottom: isDarkMode ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.1)',
+            background: isDarkMode ? '#1d2b33' : '#f8fafc',
           }}
         >
           {QUICK_REACTIONS.map((emoji) => (
@@ -87,7 +93,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             style={{
               fontSize: '18px',
               cursor: 'pointer',
-              color: '#8696a0',
+              color: isDarkMode ? '#8696a0' : '#475569',
               fontWeight: 'bold',
               userSelect: 'none',
             }}
@@ -105,7 +111,13 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             action: onReply,
           },
           {
-            icon: <span style={{ fontSize: '14px' }}>📋</span>,
+            icon: <span style={{ fontSize: '14px' }}>�</span>,
+            label: 'Insert caption',
+            action: onShowCaption,
+            color: '#f8c83b',
+          },
+          {
+            icon: <span style={{ fontSize: '14px' }}>�📋</span>,
             label: 'Copy',
             action: onCopy,
           },
@@ -123,7 +135,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
           {
             icon: <Trash2 size={15} />,
             label: 'Delete',
-            action: onClose,
+            action: onDelete,
             color: '#ef4444',
           },
         ].map(({ icon, label, action, color }) => (
@@ -136,12 +148,12 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
               gap: '14px',
               padding: '13px 18px',
               cursor: 'pointer',
-              color: color || '#e9edef',
+              color: color || (isDarkMode ? '#e9edef' : '#0f172a'),
               fontSize: '14px',
-              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              borderBottom: isDarkMode ? '1px solid rgba(255,255,255,0.04)' : '1px solid rgba(0,0,0,0.08)',
               transition: 'background 0.15s',
             }}
-            onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)')}
+            onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(59, 130, 246, 0.05)')}
             onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
           >
             {icon} {label}

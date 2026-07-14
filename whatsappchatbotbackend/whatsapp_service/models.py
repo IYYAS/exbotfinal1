@@ -12,11 +12,26 @@ class Contact(models.Model):
     platform = models.CharField(max_length=20, default='whatsapp') # whatsapp, instagram, facebook
     platform_id = models.CharField(max_length=255, null=True, blank=True, db_index=True)
     email = models.EmailField(blank=True, null=True)
-    label = models.CharField(max_length=255, blank=True, null=True, db_index=True)
+    labels = models.ManyToManyField('ContactLabel', related_name='contacts', blank=True)
     unread_messages_count = models.IntegerField(default=0)
     last_messaged_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def label(self):
+        first_label = self.labels.order_by('name').first()
+        return first_label.name if first_label else None
+
+    def set_labels_by_names(self, names):
+        if self.pk is None:
+            return
+        label_names = [str(name).strip() for name in names if str(name).strip()]
+        label_objects = []
+        for name in label_names:
+            label_obj, _ = ContactLabel.objects.get_or_create(vendor=self.vendor, name=name)
+            label_objects.append(label_obj)
+        self.labels.set(label_objects)
 
     class Meta:
         unique_together = ('vendor', 'wa_id')
@@ -29,7 +44,7 @@ class WhatsAppMessageLog(models.Model):
     uid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, related_name='messages', null=True)
     contact_wa_id = models.CharField(max_length=50)
-    wamid = models.CharField(max_length=200, unique=True, null=True, blank=True)
+    wamid = models.CharField(max_length=200, null=True, blank=True, db_index=True)
     is_incoming = models.BooleanField(default=False)
     status = models.CharField(max_length=50, default='sent') # sent, delivered, read, failed
     message_body = models.TextField(null=True, blank=True)
@@ -41,6 +56,7 @@ class WhatsAppMessageLog(models.Model):
     data = models.JSONField(default=dict) # To store raw webhook data and other metadata
 
     class Meta:
+        unique_together = ('vendor', 'wamid')
         ordering = ['-messaged_at']
 
     def __str__(self):

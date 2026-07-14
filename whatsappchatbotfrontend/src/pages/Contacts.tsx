@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, RefreshCw, Users, Tag, Filter, Eye, Edit3, Trash2 } from 'lucide-react';
+import { Search, RefreshCw, Users, Tag, Filter, Eye, Edit3, Trash2, XCircle } from 'lucide-react';
 import { whatsappAPI } from '../api';
 import type { ContactInfo } from '../types';
 
@@ -26,13 +26,18 @@ const Contacts: React.FC = () => {
   const [editLastName, setEditLastName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editEmail, setEditEmail] = useState('');
-  const [editLabel, setEditLabel] = useState('');
+  const [editLabels, setEditLabels] = useState<string[]>([]);
+  const [editLabelInput, setEditLabelInput] = useState('');
+  const [expandedLabelRows, setExpandedLabelRows] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [blockedWaIds, setBlockedWaIds] = useState<string[]>([]);
+  const [blockActionInProgress, setBlockActionInProgress] = useState(false);
 
   useEffect(() => {
     fetchContacts();
+    fetchBlockedUsers();
   }, []);
 
   const fetchContacts = async () => {
@@ -49,10 +54,59 @@ const Contacts: React.FC = () => {
     }
   };
 
+  const fetchBlockedUsers = async () => {
+    try {
+      const res = await whatsappAPI.getBlockedUsers();
+      const blocked = Array.isArray(res.data?.data)
+        ? res.data.data.map((item: any) => item.wa_id).filter(Boolean)
+        : [];
+      setBlockedWaIds(blocked);
+    } catch (err) {
+      console.error('Failed to load blocked users', err);
+    }
+  };
+
+  const handleBlockContact = async (contact: ContactInfo) => {
+    if (!window.confirm(`Block ${contact.first_name || 'WhatsApp User'}?`)) return;
+    setBlockActionInProgress(true);
+    setActionError(null);
+
+    try {
+      await whatsappAPI.blockUser(contact.wa_id);
+      await fetchBlockedUsers();
+      await fetchContacts();
+    } catch (err) {
+      console.error('Failed to block contact', err);
+      setActionError('Unable to block this user.');
+    } finally {
+      setBlockActionInProgress(false);
+    }
+  };
+
+  const handleUnblockContact = async (contact: ContactInfo) => {
+    if (!window.confirm(`Unblock ${contact.first_name || 'WhatsApp User'}?`)) return;
+    setBlockActionInProgress(true);
+    setActionError(null);
+
+    try {
+      await whatsappAPI.unblockUser(contact.wa_id);
+      await fetchBlockedUsers();
+      await fetchContacts();
+    } catch (err) {
+      console.error('Failed to unblock contact', err);
+      setActionError('Unable to unblock this user.');
+    } finally {
+      setBlockActionInProgress(false);
+    }
+  };
+
   const labels = useMemo(() => {
     const set = new Set<string>();
     contacts.forEach((contact) => {
-      if (contact.label) set.add(contact.label);
+      const contactLabels = contact.labels?.length ? contact.labels : contact.label ? [contact.label] : [];
+      contactLabels.forEach((label) => {
+        if (label) set.add(label);
+      });
     });
     return Array.from(set).sort();
   }, [contacts]);
@@ -67,7 +121,9 @@ const Contacts: React.FC = () => {
       setEditLastName(contact.last_name || '');
       setEditPhone(contact.wa_id || '');
       setEditEmail(contact.email || '');
-      setEditLabel(contact.label || '');
+      const contactLabels = contact.labels?.length ? contact.labels : contact.label ? [contact.label] : [];
+      setEditLabels(contactLabels);
+      setEditLabelInput('');
     }
   };
 
@@ -75,6 +131,36 @@ const Contacts: React.FC = () => {
     setSelectedContact(null);
     setModalMode(null);
     setActionError(null);
+  };
+
+  const toggleContactLabels = (contactId: number) => {
+    setExpandedLabelRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(contactId)) {
+        next.delete(contactId);
+      } else {
+        next.add(contactId);
+      }
+      return next;
+    });
+  };
+
+  const addEditLabel = (label: string) => {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    setEditLabels((prev) => (prev.includes(trimmed) ? prev : [...prev, trimmed]));
+    setEditLabelInput('');
+  };
+
+  const removeEditLabel = (label: string) => {
+    setEditLabels((prev) => prev.filter((item) => item !== label));
+  };
+
+  const handleEditLabelKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',' || e.key === 'Tab') {
+      e.preventDefault();
+      addEditLabel(editLabelInput);
+    }
   };
 
   const handleDeleteContact = async (contact: ContactInfo) => {
@@ -88,6 +174,7 @@ const Contacts: React.FC = () => {
       if (selectedContact?.id === contact.id) {
         closeModal();
       }
+      setSearchTerm('');
     } catch (err) {
       console.error('Failed to delete contact', err);
       setActionError('Unable to delete contact.');
@@ -108,7 +195,7 @@ const Contacts: React.FC = () => {
         last_name: editLastName,
         wa_id: editPhone.replace(/\D/g, ''),
         email: editEmail || null,
-        label: editLabel || null,
+        labels: editLabels,
       });
       await fetchContacts();
       const updated = contacts.find((c) => c.id === selectedContact.id);
@@ -127,21 +214,24 @@ const Contacts: React.FC = () => {
   const filteredContacts = useMemo(() => {
     return contacts.filter((contact) => {
       const search = searchTerm.trim().toLowerCase();
+      const contactLabels = contact.labels?.length ? contact.labels : contact.label ? [contact.label] : [];
       const matchesSearch =
         !search ||
         contact.first_name?.toLowerCase().includes(search) ||
         contact.last_name?.toLowerCase().includes(search) ||
         contact.email?.toLowerCase().includes(search) ||
         contact.wa_id?.includes(search) ||
-        contact.label?.toLowerCase().includes(search);
+        contactLabels.some((label) => label.toLowerCase().includes(search));
 
-      const matchesLabel = !labelFilter || contact.label === labelFilter;
+      const matchesLabel =
+        !labelFilter ||
+        contactLabels.some((label) => label === labelFilter);
       return matchesSearch && matchesLabel;
     });
   }, [contacts, searchTerm, labelFilter]);
 
   return (
-    <div style={{ width: '100%', minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', gap: 24, fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ width: '100%', minHeight: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column', gap: 24, fontFamily: 'var(--font-family)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 8 }}>
@@ -256,6 +346,7 @@ const Contacts: React.FC = () => {
                   <th style={{ padding: '16px 18px' }}>Phone</th>
                   <th style={{ padding: '16px 18px' }}>Email</th>
                   <th style={{ padding: '16px 18px' }}>Label</th>
+                  <th style={{ padding: '16px 18px', minWidth: 110 }}>Status</th>
                   <th style={{ padding: '16px 18px' }}>Unread</th>
                   <th style={{ padding: '16px 18px' }}>Last Messaged</th>
                   <th style={{ padding: '16px 18px' }}>Updated</th>
@@ -273,12 +364,90 @@ const Contacts: React.FC = () => {
                     <td style={{ padding: '16px 18px', verticalAlign: 'middle', color: 'var(--text-secondary)' }}>+{contact.wa_id}</td>
                     <td style={{ padding: '16px 18px', verticalAlign: 'middle', color: 'var(--text-secondary)' }}>{contact.email || '—'}</td>
                     <td style={{ padding: '16px 18px', verticalAlign: 'middle' }}>
-                      {contact.label ? (
-                        <span style={{ padding: '6px 10px', borderRadius: 9999, background: 'rgba(96,165,250,0.12)', color: '#60a5fa', fontSize: 12, fontWeight: 600 }}>
-                          {contact.label}
-                        </span>
+                      {(() => {
+                        const contactLabels = contact.labels?.length ? contact.labels : contact.label ? [contact.label] : [];
+                        const isExpanded = expandedLabelRows.has(contact.id);
+                        if (!contactLabels.length) {
+                          return <span style={{ color: 'var(--text-secondary)' }}>None</span>;
+                        }
+
+                        const visibleLabels = isExpanded ? contactLabels : [contactLabels[0]];
+                        const remainingCount = contactLabels.length - visibleLabels.length;
+
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                            {visibleLabels.map((label) => (
+                              <span
+                                key={label}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: 9999,
+                                  background: 'rgba(96,165,250,0.12)',
+                                  color: '#60a5fa',
+                                  fontSize: 12,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {label}
+                              </span>
+                            ))}
+                            {remainingCount > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleContactLabels(contact.id)}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: 9999,
+                                  border: '1px solid rgba(96,165,250,0.35)',
+                                  background: 'rgba(96,165,250,0.08)',
+                                  color: '#2563eb',
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                +{remainingCount} more
+                              </button>
+                            )}
+                            {isExpanded && contactLabels.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => toggleContactLabels(contact.id)}
+                                style={{
+                                  padding: '6px 10px',
+                                  borderRadius: 9999,
+                                  border: '1px solid rgba(148,163,184,0.35)',
+                                  background: 'rgba(148,163,184,0.08)',
+                                  color: '#475569',
+                                  fontSize: 12,
+                                  cursor: 'pointer',
+                                  marginLeft: 4,
+                                }}
+                              >
+                                Hide
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </td>
+                    <td style={{ padding: '16px 18px', verticalAlign: 'middle' }}>
+                      {blockedWaIds.includes(contact.wa_id) ? (
+                        <div
+                          title="Blocked user"
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: 9999,
+                            background: 'rgba(248,113,113,0.16)',
+                            display: 'grid',
+                            placeItems: 'center',
+                            color: '#ef4444'
+                          }}
+                        >
+                          <XCircle size={18} />
+                        </div>
                       ) : (
-                        <span style={{ color: 'var(--text-secondary)' }}>None</span>
+                        <span style={{ color: 'var(--text-secondary)' }}>Active</span>
                       )}
                     </td>
                     <td style={{ padding: '16px 18px', verticalAlign: 'middle', fontWeight: 600, color: contact.unread_messages_count > 0 ? '#22c55e' : 'var(--text-secondary)' }}>
@@ -390,7 +559,12 @@ const Contacts: React.FC = () => {
                   </div>
                   <div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Label</div>
-                    <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>{selectedContact.label || 'None'}</div>
+                    <div style={{ fontSize: 14, color: 'var(--text-primary)' }}>
+                      {(() => {
+                        const contactLabels = selectedContact.labels?.length ? selectedContact.labels : selectedContact.label ? [selectedContact.label] : [];
+                        return contactLabels.length ? contactLabels.join(', ') : 'None';
+                      })()}
+                    </div>
                   </div>
                 </div>
 
@@ -405,7 +579,33 @@ const Contacts: React.FC = () => {
                   </div>
                 </div>
 
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+                  <div>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Blocked</div>
+                    <div style={{ fontSize: 14, color: selectedContact && blockedWaIds.includes(selectedContact.wa_id) ? '#ef4444' : 'var(--text-primary)' }}>
+                      {selectedContact && blockedWaIds.includes(selectedContact.wa_id) ? 'Yes' : 'No'}
+                    </div>
+                  </div>
+                </div>
+
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+                  {selectedContact && blockedWaIds.includes(selectedContact.wa_id) ? (
+                    <button
+                      onClick={() => handleUnblockContact(selectedContact)}
+                      disabled={blockActionInProgress}
+                      style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #a855f7', background: '#f3e8ff', color: '#7c3aed', cursor: blockActionInProgress ? 'not-allowed' : 'pointer' }}
+                    >
+                      {blockActionInProgress ? 'Processing…' : 'Unblock User'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleBlockContact(selectedContact)}
+                      disabled={blockActionInProgress}
+                      style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid #ef4444', background: '#fef2f2', color: '#b91c1c', cursor: blockActionInProgress ? 'not-allowed' : 'pointer' }}
+                    >
+                      {blockActionInProgress ? 'Processing…' : 'Block User'}
+                    </button>
+                  )}
                   <button
                     onClick={() => openContactModal(selectedContact, 'edit')}
                     style={{ padding: '10px 16px', borderRadius: 10, border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)', cursor: 'pointer' }}
@@ -464,12 +664,69 @@ const Contacts: React.FC = () => {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 13 }}>Label</label>
+                  <label style={{ display: 'block', marginBottom: 8, color: 'var(--text-secondary)', fontSize: 13 }}>Labels</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                    {editLabels.map((label) => (
+                      <div
+                        key={label}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '6px 10px',
+                          borderRadius: 9999,
+                          background: 'rgba(96,165,250,0.16)',
+                          color: '#60a5fa',
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>{label}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeEditLabel(label)}
+                          style={{
+                            padding: 0,
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#2563eb',
+                            cursor: 'pointer',
+                            fontSize: 14,
+                            lineHeight: 1,
+                          }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                   <input
-                    value={editLabel}
-                    onChange={(e) => setEditLabel(e.target.value)}
+                    value={editLabelInput}
+                    onChange={(e) => setEditLabelInput(e.target.value)}
+                    onKeyDown={handleEditLabelKeyDown}
+                    placeholder="Type a label and press Enter"
                     style={{ width: '100%', padding: 12, borderRadius: 12, border: '1px solid var(--border-color)', background: 'var(--surface-color)', color: 'var(--text-primary)' }}
                   />
+                  <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {labels.slice(0, 10).map((label) => (
+                      <button
+                        key={label}
+                        type="button"
+                        onClick={() => addEditLabel(label)}
+                        style={{
+                          border: '1px solid rgba(96,165,250,0.3)',
+                          background: 'rgba(96,165,250,0.08)',
+                          color: '#60a5fa',
+                          borderRadius: 9999,
+                          padding: '6px 10px',
+                          cursor: 'pointer',
+                          fontSize: 12,
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {actionError && (

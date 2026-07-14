@@ -5,7 +5,7 @@ from .client import WhatsAppClient
 
 from celery import shared_task
 from .models import ChatbotFlow
-from .flow_engine.engine import FlowEngine
+from .flow_engine.engine import FlowEngine, _log_outgoing_message
 from .flow_engine.bot_flow_processor import BotFlowProcessor
 from .models import WhatsAppMessageLog
 
@@ -64,6 +64,7 @@ def process_due_sequence_steps():
                 result = {'skipped': True}
             else:
                 result = client.send_message(sub.contact.wa_id, step.message_body)
+                _log_outgoing_message(sub.contact.wa_id, sub.sequence.vendor, 'text', step.message_body, result)
             print(f'    ✅ Sent sequence message for sub {sub.id}: {step.message_body!r}')
             print(f'    📤 send_message result: {result}')
             # Optional follow-up payload: send extra text and/or media immediately
@@ -73,12 +74,14 @@ def process_due_sequence_steps():
                 if follow:
                     # follow can be a string (text) or dict {text, media_url, media_id, media_type}
                     if isinstance(follow, str):
-                        client.send_message(sub.contact.wa_id, follow)
+                        result = client.send_message(sub.contact.wa_id, follow)
+                        _log_outgoing_message(sub.contact.wa_id, sub.sequence.vendor, 'text', follow, result)
                         print(f"    ✉️  Sent follow-up text for sub {sub.id}: {follow!r}")
                     elif isinstance(follow, dict):
                         ftext = follow.get('text')
                         if ftext:
-                            client.send_message(sub.contact.wa_id, ftext)
+                            result = client.send_message(sub.contact.wa_id, ftext)
+                            _log_outgoing_message(sub.contact.wa_id, sub.sequence.vendor, 'text', ftext, result)
                             print(f"    ✉️  Sent follow-up text for sub {sub.id}: {ftext!r}")
                         # send image/video/audio/document if provided
                         media_id = follow.get('media_id')
@@ -88,7 +91,15 @@ def process_due_sequence_steps():
                             if not media_type:
                                 media_type = 'image'
                             try:
-                                client.send_media_message(sub.contact.wa_id, media_type, media_id=media_id, media_url=media_url)
+                                result = client.send_media_message(sub.contact.wa_id, media_type, media_id=media_id, media_url=media_url)
+                                _log_outgoing_message(
+                                    sub.contact.wa_id,
+                                    sub.sequence.vendor,
+                                    media_type,
+                                    ftext or f"[{media_type.upper()}]",
+                                    result,
+                                    attachment=media_id or media_url
+                                )
                                 print(f"    🖼️  Sent follow-up media ({media_type}) for sub {sub.id}")
                             except Exception as em:
                                 print(f"    ❌ Failed to send follow-up media for sub {sub.id}: {em}")

@@ -4,6 +4,7 @@ import os
 import io
 import requests
 import subprocess
+from urllib.parse import quote
 from django.shortcuts import redirect
 from django.http import HttpResponse
 from django.views import View
@@ -11,7 +12,10 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.conf import settings
 from django.utils import timezone
+from django.utils.text import get_valid_filename
+from django.db.models import Q
 from rest_framework.views import APIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.response import Response
 from rest_framework import status, permissions
 from rest_framework.permissions import IsAuthenticated
@@ -231,56 +235,77 @@ class AccountStatusAPIView(APIView):
             "permissions": permissions
         })
 
-class ContactListAPIView(APIView):
+class ContactListAPIView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = ContactSerializer
 
-    def get(self, request):
-        contacts = Contact.objects.filter(vendor=request.user.vendor).order_by('-last_messaged_at', '-created_at')
-        return Response(ContactSerializer(contacts, many=True).data)
+    def get_queryset(self):
+        search_query = self.request.query_params.get('search', '').strip()
+        unread_filter = self.request.query_params.get('unread', '').strip().lower()
+        blocked_filter = self.request.query_params.get('blocked', '').strip().lower()
+        queryset = Contact.objects.filter(vendor=self.request.user.vendor)
 
-    def post(self, request):
-        serializer = ContactSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save(vendor=request.user.vendor)
-            return Response(serializer.data, status=201)
-        return Response(serializer.errors, status=400)
+        if search_query:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(wa_id__icontains=search_query) |
+                Q(labels__name__icontains=search_query)
+            ).distinct()
 
-class ContactDetailAPIView(APIView):
+        if unread_filter in ('1', 'true', 'yes'):
+            queryset = queryset.filter(unread_messages_count__gt=0)
+
+        if blocked_filter in ('1', 'true', 'yes'):
+            client = WhatsAppClient(vendor=self.request.user.vendor)
+            result = client.get_blocked_users()
+            blocked_ids = []
+            if 'error' in result:
+                logger.warning('Unable to fetch blocked users for contact filter: %s', result.get('error'))
+            else:
+                blocked_ids = [str(item.get('user')) for item in result.get('data', []) if item.get('user')]
+            queryset = queryset.filter(wa_id__in=blocked_ids)
+
+        return queryset.order_by('-last_messaged_at', '-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(vendor=self.request.user.vendor)
+
+class ContactDetailAPIView(RetrieveUpdateDestroyAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = ContactSerializer
 
-    def get_object(self, pk, vendor):
-        try:
-            return Contact.objects.get(pk=pk, vendor=vendor)
-        except Contact.DoesNotExist:
-            return None
+    def get_queryset(self):
+        return Contact.objects.filter(vendor=self.request.user.vendor)
 
-    def put(self, request, pk):
-        contact = self.get_object(pk, request.user.vendor)
-        if not contact: 
-            return Response(status=404)
-        serializer = ContactSerializer(contact, data=request.data, partial=True)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=400)
-
-    def delete(self, request, pk):
-        contact = self.get_object(pk, request.user.vendor)
-        if not contact: 
-            return Response(status=404)
-        contact.delete()
-        return Response(status=204)
-
-class MessageListAPIView(APIView):
+class MessageListAPIView(ListCreateAPIView):
     permission_classes = [IsAuthenticated]
+    serializer_class = WhatsAppMessageLogSerializer
 
-    def get(self, request):
+    def get_queryset(self):
+        wa_id = self.request.query_params.get('contact')
+        queryset = WhatsAppMessageLog.objects.filter(vendor=self.request.user.vendor).order_by('-messaged_at')
+        if wa_id:
+            queryset = queryset.filter(contact_wa_id=wa_id)
+        return queryset
+
+    def list(self, request, *args, **kwargs):
         wa_id = request.query_params.get('contact')
-        qs = WhatsAppMessageLog.objects.filter(vendor=request.user.vendor).order_by('-messaged_at')
-        if wa_id: 
-            qs = qs.filter(contact_wa_id=wa_id)
+        if wa_id:
             Contact.objects.filter(vendor=request.user.vendor, wa_id=wa_id).update(unread_messages_count=0)
-        return Response(WhatsAppMessageLogSerializer(qs[:100], many=True).data)
+        queryset = self.filter_queryset(self.get_queryset())[:100]
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+    def perform_create(self, serializer):
+        serializer.save(vendor=self.request.user.vendor)
+
+class MessageDetailAPIView(RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = WhatsAppMessageLogSerializer
+
+    def get_queryset(self):
+        return WhatsAppMessageLog.objects.filter(vendor=self.request.user.vendor)
 
 class TemplateSyncAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -392,7 +417,9 @@ class MediaUploadAPIView(APIView):
             return Response({'error': 'No file provided'}, status=400)
 
         timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
-        filename = f"{timestamp}_{file_obj.name}"
+        safe_filename = get_valid_filename(file_obj.name)
+        safe_filename = safe_filename.replace(' ', '_')
+        filename = f"{timestamp}_{safe_filename}"
         rel_path = os.path.join('whatsapp', 'uploads', filename)
         save_path = os.path.join(settings.MEDIA_ROOT, rel_path)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
@@ -403,7 +430,7 @@ class MediaUploadAPIView(APIView):
 
         base_url = getattr(settings, 'NGROK_URL', request.build_absolute_uri('/'))
         base_url = base_url.rstrip('/')
-        local_url = f"{base_url}{settings.MEDIA_URL}{rel_path.replace(os.sep, '/')}"
+        local_url = f"{base_url}{settings.MEDIA_URL}{quote(rel_path.replace(os.sep, '/'))}"
         client = WhatsAppClient(vendor=request.user.vendor)
 
         try:
@@ -431,7 +458,7 @@ class MediaUploadAPIView(APIView):
                         upload_path = ogg_save_path
                         upload_filename = ogg_filename
                         upload_mime = 'audio/ogg'
-                        local_url = f"{base_url}{settings.MEDIA_URL}{ogg_rel_path.replace(os.sep, '/')}"
+                        local_url = f"{base_url}{settings.MEDIA_URL}{quote(ogg_rel_path.replace(os.sep, '/'))}"
                     else:
                         print(f'ffmpeg error: {result.stderr.decode()}')
 
@@ -505,6 +532,7 @@ class SendMessageAPIView(APIView):
         if not vendor:
             return Response({'error': 'No vendor account associated with this user.'}, status=403)
         print("SendMessageAPIView request data:", request.data)
+        print(f"SendMessageAPIView: user={request.user} vendor={vendor} to={request.data.get('to_number')} type={request.data.get('type', 'text')} body={request.data.get('body', '')!r}")
 
         to_id = request.data.get('to_number')
         body = request.data.get('body', '')
@@ -571,9 +599,19 @@ class SendMessageAPIView(APIView):
         attachment_val = None
         if msg_type != 'text':
             if local_url:
-                attachment_val = local_url.replace(settings.MEDIA_URL, '')
+                normalized_local_url = local_url.strip()
+                # Preserve full URLs and avoid accidental path trimming.
+                if normalized_local_url.startswith('http'):
+                    attachment_val = normalized_local_url
+                else:
+                    attachment_val = normalized_local_url.replace(settings.MEDIA_URL, '')
             elif media_url:
                 attachment_val = media_url
+
+        if msg_type != 'text':
+            message_body = body.strip() if isinstance(body, str) else ''
+        else:
+            message_body = body
 
         log = WhatsAppMessageLog.objects.create(
             vendor=vendor,
@@ -581,7 +619,7 @@ class SendMessageAPIView(APIView):
             contact_wa_id=to_id,
             is_incoming=False,
             status='pending',
-            message_body=body or f"[{msg_type.upper()} ATTACHMENT]",
+            message_body=message_body,
             message_type=msg_type,
             platform=platform,
             attachment=attachment_val,
@@ -678,12 +716,13 @@ class SendTemplateAPIView(APIView):
             }, status=400)
 
         # Auto-build components if not provided
-        components = template_data.get('components', [])
+        components = template_data.get('components') or []
         
-        # If no components provided but template has IMAGE header, add default image
+        # If no components are provided but the local template expects an IMAGE header,
+        # require an image_url or let the caller explicitly provide the header component.
         if not components and local_template:
             template_meta = local_template.data if isinstance(local_template.data, dict) else {}
-            template_components = template_meta.get('components', [])
+            template_components = template_meta.get('components', []) if isinstance(template_meta.get('components', []), list) else []
             
             print("\n" + "="*80)
             print("🔍 TEMPLATE AUTO-DETECTION DEBUG")
@@ -695,35 +734,48 @@ class SendTemplateAPIView(APIView):
             print(f"Template Components: {template_components}")
             print("="*80 + "\n")
             
-            # Check if template has IMAGE header (check both 'format' and check structure)
             has_image_header = False
             for comp in template_components:
+                if not isinstance(comp, dict):
+                    continue
+                comp_type = str(comp.get('type', '')).upper()
+                comp_format = str(comp.get('format', '')).upper()
                 print(f"Checking component: {comp}")
-                if comp.get('type') == 'header':
-                    if comp.get('format') == 'IMAGE' or comp.get('image'):
-                        has_image_header = True
-                        break
+                if comp_type == 'HEADER' and comp_format == 'IMAGE':
+                    has_image_header = True
+                    break
+                if comp_type == 'HEADER' and isinstance(comp.get('example'), dict) and comp['example'].get('header_handle'):
+                    has_image_header = True
+                    break
             
             print(f"✅ Has IMAGE Header: {has_image_header}\n")
             
-            if has_image_header or 'image' in template_name.lower():
-                # Use provided image URL or default
-                image_url = request.data.get('image_url', 
-                    'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT3kstLm9gMpqyvD8xQvozVcovOT3_HhpVSAg&s')
-                components = [
-                    {
-                        "type": "header",
-                        "parameters": [
-                            {
-                                "type": "image",
-                                "image": {
-                                    "link": image_url
+            if has_image_header:
+                image_url = request.data.get('image_url')
+                if image_url:
+                    components = [
+                        {
+                            "type": "header",
+                            "parameters": [
+                                {
+                                    "type": "image",
+                                    "image": {
+                                        "link": image_url
+                                    }
                                 }
-                            }
-                        ]
-                    }
-                ]
-                print(f"✅ Auto-added IMAGE header component with URL: {image_url}\n")
+                            ]
+                        }
+                    ]
+                    print(f"✅ Added IMAGE header component with URL: {image_url}\n")
+                else:
+                    return Response({
+                        'success': False,
+                        'error': 'Template requires an IMAGE header. Please provide image_url or include header image parameters in components.',
+                        'template_info': {
+                            'name': template_name,
+                            'requires_image_header': True,
+                        }
+                    }, status=400)
 
         # Update template_data with components
         template_data['components'] = components
@@ -894,6 +946,67 @@ class SendLocationMessageView(APIView):
         )
 
         return Response(response.json())
+
+
+class BlockUsersAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        vendor = getattr(request.user, 'vendor', None)
+        if not vendor:
+            return Response({'success': False, 'error': 'No vendor account associated.'}, status=403)
+
+        client = WhatsAppClient(vendor=vendor)
+        result = client.get_blocked_users()
+        if 'error' in result:
+            return Response({'success': False, 'error': result.get('error'), 'meta_response': result}, status=400)
+        return Response({'success': True, 'data': result.get('data', [])})
+
+    def post(self, request):
+        vendor = getattr(request.user, 'vendor', None)
+        if not vendor:
+            return Response({'success': False, 'error': 'No vendor account associated.'}, status=403)
+
+        block_users = request.data.get('block_users')
+        wa_id = request.data.get('wa_id') or request.data.get('user')
+        wa_ids = []
+
+        if isinstance(block_users, list):
+            wa_ids = [str(item.get('user')) for item in block_users if item.get('user')]
+        elif wa_id:
+            wa_ids = [str(wa_id)]
+
+        if not wa_ids:
+            return Response({'success': False, 'error': 'wa_id or block_users payload is required.'}, status=400)
+
+        client = WhatsAppClient(vendor=vendor)
+        result = client.block_users(wa_ids)
+        if 'error' in result:
+            return Response({'success': False, 'error': result.get('error'), 'meta_response': result}, status=400)
+        return Response({'success': True, 'meta_response': result})
+
+    def delete(self, request):
+        vendor = getattr(request.user, 'vendor', None)
+        if not vendor:
+            return Response({'success': False, 'error': 'No vendor account associated.'}, status=403)
+
+        block_users = request.data.get('block_users')
+        wa_id = request.data.get('wa_id') or request.data.get('user')
+        wa_ids = []
+
+        if isinstance(block_users, list):
+            wa_ids = [str(item.get('user')) for item in block_users if item.get('user')]
+        elif wa_id:
+            wa_ids = [str(wa_id)]
+
+        if not wa_ids:
+            return Response({'success': False, 'error': 'wa_id or block_users payload is required.'}, status=400)
+
+        client = WhatsAppClient(vendor=vendor)
+        result = client.unblock_users(wa_ids)
+        if 'error' in result:
+            return Response({'success': False, 'error': result.get('error'), 'meta_response': result}, status=400)
+        return Response({'success': True, 'meta_response': result})
 
 
 # ─────────────────────────────────────────────────────────────
@@ -1305,14 +1418,8 @@ class ContactLabelListCreateAPIView(APIView):
 
     def get(self, request):
         vendor = request.user.vendor
-        # Fetch distinct labels from Contact model
-        contact_labels = set(Contact.objects.filter(vendor=vendor).exclude(label__isnull=True).exclude(label='').values_list('label', flat=True).distinct())
-        # Fetch explicitly created labels
-        saved_labels = set(ContactLabel.objects.filter(vendor=vendor).values_list('name', flat=True))
-        
-        # Combine and sort
-        all_labels = sorted(list(contact_labels.union(saved_labels)))
-        data = [{'id': label, 'name': label} for label in all_labels]
+        contact_labels = set(ContactLabel.objects.filter(vendor=vendor).values_list('name', flat=True))
+        data = [{'id': label, 'name': label} for label in sorted(contact_labels)]
         return Response(data)
 
     def post(self, request):

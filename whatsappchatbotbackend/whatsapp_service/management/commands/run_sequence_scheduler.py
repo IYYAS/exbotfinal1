@@ -19,6 +19,7 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from whatsapp_service.tasks import process_due_sequence_steps
+from whatsapp_service.flow_engine.engine import _log_outgoing_message
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +105,12 @@ class Command(BaseCommand):
             if within_24h:
                 # ✅ Within 24h — send as configured (text or template)
                 if message_type == 'text' and text_body:
-                    client.send_message(wa_id, text_body)
+                    result = client.send_message(wa_id, text_body)
+                    _log_outgoing_message(wa_id, vendor, 'text', text_body, result)
                     self.stdout.write(f'  ✅ [24h] Sent text to {wa_id}: {text_body[:50]}')
                 elif message_type == 'template' and template_name:
-                    client.send_template_message(wa_id, template_name, template_lang)
+                    result = client.send_template_message(wa_id, template_name, template_lang)
+                    _log_outgoing_message(wa_id, vendor, 'template', f"Template: {template_name}", result)
                     self.stdout.write(f'  ✅ [24h] Sent template "{template_name}" to {wa_id}')
                 else:
                     delivery.status = 'failed'
@@ -122,7 +125,8 @@ class Command(BaseCommand):
                 tpl = fallback_template or (template_name if message_type == 'template' else '')
 
                 if tpl:
-                    client.send_template_message(wa_id, tpl, template_lang)
+                    result = client.send_template_message(wa_id, tpl, template_lang)
+                    _log_outgoing_message(wa_id, vendor, 'template', f"Template: {tpl}", result)
                     self.stdout.write(f'  ✅ [OUTSIDE 24h] Sent fallback template "{tpl}" to {wa_id}')
                 else:
                     delivery.status = 'failed'

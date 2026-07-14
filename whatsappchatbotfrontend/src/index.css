@@ -1,12 +1,57 @@
 :root {
   --bg-color: #0f172a;
   --surface-color: #1e293b;
+  --surface-muted: #111827;
+  --surface-alt: #111827;
+  --surface-alt-soft: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.04);
+  --surface-hover-strong: rgba(255, 255, 255, 0.08);
+  --surface-overlay: rgba(15, 23, 42, 0.7);
+  --card-shadow: 0 20px 25px -5px var(--shadow-color), 0 8px 10px -6px var(--shadow-color);
+  --card-shadow-soft: 0 8px 24px -8px rgba(0, 0, 0, 0.25);
+  --overlay-bg: rgba(15, 23, 42, 0.6);
   --primary-color: #3b82f6;
+  --accent-color: #3b82f6;
   --primary-hover: #2563eb;
+  --accent-hover: #2563eb;
+  --accent-bg: rgba(59, 130, 246, 0.15);
+  --accent-bg-light: rgba(59, 130, 246, 0.08);
+  --accent-bg-soft: rgba(59, 130, 246, 0.05);
+  --accent-border: rgba(59, 130, 246, 0.25);
+  --accent-border-strong: rgba(59, 130, 246, 0.45);
+  --accent-gradient: linear-gradient(135deg, var(--accent-color), #8b5cf6);
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
+  --text-muted: #94a3b8;
+  --muted-color: #94a3b8;
+  --success-color: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --success-bg-light: rgba(16, 185, 129, 0.1);
+  --success-border: rgba(16, 185, 129, 0.25);
+  --danger-color: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --danger-bg-light: rgba(239, 68, 68, 0.1);
+  --danger-border: rgba(239, 68, 68, 0.25);
+  --warning-color: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.15);
+  --warning-bg-light: rgba(251, 191, 36, 0.1);
+  --warning-border: rgba(251, 191, 36, 0.25);
+  --info-color: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.15);
+  --info-bg-light: rgba(96, 165, 250, 0.1);
+  --info-bg-soft: rgba(96, 165, 250, 0.05);
+  --info-border: rgba(96, 165, 250, 0.25);
+  --purple-color: #a78bfa;
+  --purple-bg: rgba(167, 139, 250, 0.15);
+  --purple-bg-soft: rgba(167, 139, 250, 0.08);
   --border-color: #334155;
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --modal-bg: rgba(15, 23, 42, 0.98);
   --input-bg: #0f172a;
+  --input-border: #334155;
+  --button-bg: var(--primary-color);
+  --button-text: #ffffff;
+  --button-bg-hover: #2563eb;
   --shadow-color: rgba(0, 0, 0, 0.5);
   --error-color: #ef4444;
 
@@ -24,16 +69,50 @@
   --fb-bg-input: #0f172a;
   --fb-bg-hover: #334155;
   --fb-canvas-dots: radial-gradient(var(--fb-border-card) 1px, transparent 1px);
+  --font-family: 'Yuyu Short', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .light-theme {
   --bg-color: #f8fafc;
   --surface-color: #ffffff;
+  --surface-muted: #f1f5f9;
+  --primary-color: #3b82f6;
+  --accent-color: #3b82f6;
+  --primary-hover: #2563eb;
+  --accent-hover: #2563eb;
   --text-primary: #0f172a;
   --text-secondary: #475569;
+  --text-muted: #64748b;
+  --muted-color: #475569;
+  --success-color: #10b981;
+  --success-bg: rgba(16, 185, 129, 0.15);
+  --success-bg-light: rgba(16, 185, 129, 0.1);
+  --success-border: rgba(16, 185, 129, 0.25);
+  --danger-color: #ef4444;
+  --danger-bg: rgba(239, 68, 68, 0.15);
+  --danger-bg-light: rgba(239, 68, 68, 0.1);
+  --danger-border: rgba(239, 68, 68, 0.25);
+  --warning-color: #fbbf24;
+  --warning-bg: rgba(251, 191, 36, 0.15);
+  --warning-bg-light: rgba(251, 191, 36, 0.1);
+  --warning-border: rgba(251, 191, 36, 0.25);
+  --info-color: #60a5fa;
+  --info-bg: rgba(96, 165, 250, 0.15);
+  --info-bg-light: rgba(96, 165, 250, 0.1);
+  --info-bg-soft: rgba(96, 165, 250, 0.05);
+  --info-border: rgba(96, 165, 250, 0.25);
+  --surface-alt: #f1f5f9;
+  --surface-alt-soft: rgba(15, 23, 42, 0.03);
+  --surface-hover: rgba(15, 23, 42, 0.04);
+  --surface-hover-strong: rgba(15, 23, 42, 0.08);
+  --surface-overlay: rgba(248, 250, 252, 0.7);
   --border-color: #e2e8f0;
+  --border-soft: rgba(0, 0, 0, 0.1);
+  --modal-bg: rgba(248, 250, 252, 0.98);
   --input-bg: #ffffff;
+  --input-border: #e2e8f0;
   --shadow-color: rgba(0, 0, 0, 0.05);
+  --error-color: #ef4444;
 
   /* FlowBuilder Variables (Light) */
   --fb-bg-main: #f4f7fb;
@@ -57,8 +136,19 @@
   padding: 0;
 }
 
+html,
+body,
+#root,
+input,
+textarea,
+button,
+select,
+a {
+  font-family: var(--font-family);
+}
+
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: var(--font-family);
   background-color: var(--bg-color);
   color: var(--text-primary);
   line-height: 1.5;
@@ -222,4 +312,34 @@ body {
 @keyframes pulse {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.8; }
+}
+
+/* Custom Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--primary-color);
+}
+
+/* Firefox Scrollbar */
+* {
+  scrollbar-color: var(--border-color) transparent;
+  scrollbar-width: thin;
 }

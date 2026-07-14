@@ -138,6 +138,7 @@ CORS_ALLOW_ALL_ORIGINS = False
 # Replace or extend these with your frontend origins (Vercel + local dev)
 CORS_ALLOWED_ORIGINS = [
     'https://exbotfinal1-yxx4.vercel.app',
+    'https://lanette-unmonarchic-contradictorily.ngrok-free.dev',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://localhost:3000',
@@ -149,8 +150,17 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     'authorization',
 ]
 
+# Also allow any ngrok preview/origin if you use a dynamic ngrok frontend host
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r'^https?://.*\.ngrok-free\.dev$',
+]
+
 # If your frontend sends cookies or uses credentials, set this to True
 CORS_ALLOW_CREDENTIALS = True
+
+# Disable Django security COOP/COEP headers for dev media fetching over ngrok
+SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+SECURE_CROSS_ORIGIN_EMBEDDER_POLICY = None
 
 # DRF & JWT Config
 REST_FRAMEWORK = {

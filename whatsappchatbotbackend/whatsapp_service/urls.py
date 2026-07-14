@@ -1,9 +1,9 @@
 from django.urls import path
 from .views import (
     SettingsAPIView, TestConnectionAPIView, AccountStatusAPIView, WhatsAppWebhookView,
-    ContactListAPIView, ContactDetailAPIView, MessageListAPIView, TemplateListAPIView,
+    ContactListAPIView, ContactDetailAPIView, MessageListAPIView, MessageDetailAPIView, TemplateListAPIView,
     TemplateSyncAPIView, MediaUploadAPIView, SendMessageAPIView, SendTemplateAPIView, SendReactionAPIView,
-    SendLocationMessageView, TemplateCreateAPIView, TemplateDeleteAPIView,
+    SendLocationMessageView, BlockUsersAPIView, TemplateCreateAPIView, TemplateDeleteAPIView,
     SendInteractiveButtonAPIView, TemplateMediaUploadAPIView,
 ) 
 
@@ -22,6 +22,7 @@ urlpatterns = [
     path('contacts/', ContactListAPIView.as_view(), name='whatsapp-contacts'),
     path('contacts/<int:pk>/', ContactDetailAPIView.as_view(), name='whatsapp-contact-detail'),
     path('messages/', MessageListAPIView.as_view(), name='whatsapp-messages'),
+    path('messages/<int:pk>/', MessageDetailAPIView.as_view(), name='whatsapp-message-detail'),
     path('templates/', TemplateListAPIView.as_view(), name='whatsapp-templates'),
     path('templates/sync/', TemplateSyncAPIView.as_view(), name='whatsapp-templates-sync'),
     path('templates/create/', TemplateCreateAPIView.as_view(), name='whatsapp-templates-create'),
@@ -32,6 +33,7 @@ urlpatterns = [
     path('send-template/', SendTemplateAPIView.as_view(), name='whatsapp-send-template'),
     path('send-reaction/', SendReactionAPIView.as_view(), name='whatsapp-send-reaction'),
     path('send-location/', SendLocationMessageView.as_view(), name='whatsapp-send-location'),
+    path('blocked-users/', BlockUsersAPIView.as_view(), name='whatsapp-blocked-users'),
     path('send-interactive-buttons/', SendInteractiveButtonAPIView.as_view(), name='whatsapp-send-interactive-buttons'),
 
     # Chatbot Flow APIs

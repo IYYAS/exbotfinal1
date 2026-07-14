@@ -354,7 +354,7 @@ const TemplateManager: React.FC = () => {
         </div>
 
         {/* Success Banner (Mocked like screenshot) */}
-        <div style={{ background: '#10b981', color: '#fff', padding: '16px 20px', borderRadius: 8, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={{ background: 'var(--success-bg)', color: 'var(--success-color)', padding: '16px 20px', borderRadius: 8, marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ fontSize: 18, fontWeight: 700 }}>Successful</div>
           <div style={{ fontSize: 13 }}>Message templates status have been synchronized successfully.</div>
         </div>
@@ -371,7 +371,7 @@ const TemplateManager: React.FC = () => {
 
           <div style={{ flex: 1 }} />
 
-          <button onClick={syncTemplates} style={{ padding: '8px 16px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid #10b981', borderRadius: 6, color: '#10b981', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600 }}>
+          <button onClick={syncTemplates} style={{ padding: '8px 16px', background: 'var(--success-bg-light)', border: '1px solid var(--success-border)', borderRadius: 6, color: 'var(--success-color)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600 }}>
             ✓ Check Status
           </button>
           <button style={{ padding: '8px 16px', background: 'var(--bg-color)', border: '1px solid var(--border-color)', borderRadius: 6, color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600 }}>
@@ -379,7 +379,7 @@ const TemplateManager: React.FC = () => {
           </button>
           <button
             onClick={() => { resetForm(); setShowCreateModal(true); }}
-            style={{ padding: '8px 16px', background: 'var(--bg-color)', border: '1px solid #3b82f6', borderRadius: 6, color: '#3b82f6', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600 }}
+            style={{ padding: '8px 16px', background: 'var(--accent-color)', border: 'none', borderRadius: 6, color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 600 }}
           >
             + Create
           </button>
@@ -426,8 +426,8 @@ const TemplateManager: React.FC = () => {
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{template.data?.components?.find((c: any) => c.type === 'BODY')?.type.toLowerCase() || 'text'}</div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: template.status === 'APPROVED' ? '#10b981' : '#f59e0b' }}></span>
-                    <span style={{ fontSize: 12, color: template.status === 'APPROVED' ? '#10b981' : '#f59e0b', fontWeight: 500 }}>
+                    <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: template.status === 'APPROVED' ? 'var(--success-color)' : 'var(--warning-color)' }}></span>
+                    <span style={{ fontSize: 12, color: template.status === 'APPROVED' ? 'var(--success-color)' : 'var(--warning-color)', fontWeight: 500 }}>
                       {template.status === 'APPROVED' ? 'Approved' : template.status || 'Pending'}
                     </span>
                   </div>
@@ -458,7 +458,7 @@ const TemplateManager: React.FC = () => {
               <span>Showing 1 to {templates.length} of {templates.length} entries</span>
               <div style={{ display: 'flex', gap: 6 }}>
                 <button style={{ padding: '4px 10px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', borderRadius: 4, color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer' }}>Previous</button>
-                <button style={{ padding: '4px 10px', border: 'none', background: '#3b82f6', borderRadius: 4, color: '#fff', fontSize: 11, cursor: 'pointer' }}>1</button>
+                <button style={{ padding: '4px 10px', border: 'none', background: 'var(--accent-color)', borderRadius: 4, color: '#fff', fontSize: 11, cursor: 'pointer' }}>1</button>
                 <button style={{ padding: '4px 10px', border: '1px solid var(--border-color)', background: 'var(--bg-color)', borderRadius: 4, color: 'var(--text-secondary)', fontSize: 11, cursor: 'pointer' }}>Next</button>
               </div>
             </div>

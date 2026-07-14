@@ -1,13 +1,70 @@
 from rest_framework import serializers
-from .models import WhatsAppMessageLog, WhatsAppTemplate, Contact, VendorSettings
+from .models import WhatsAppMessageLog, WhatsAppTemplate, Contact, VendorSettings, ContactLabel
+
+class LabelListField(serializers.ListField):
+    def to_representation(self, value):
+        if value is None:
+            return []
+        if hasattr(value, 'all'):
+            return [label.name for label in value.all().order_by('name')]
+        return super().to_representation(value)
 
 class ContactSerializer(serializers.ModelSerializer):
+    last_message_body = serializers.SerializerMethodField()
+    last_message_sender = serializers.SerializerMethodField()
+    labels = LabelListField(child=serializers.CharField(), required=False, allow_empty=True)
+    label = serializers.SerializerMethodField()
+
     class Meta:
         model = Contact
         fields = [
-            'id', 'wa_id', 'first_name', 'last_name', 'email', 'label',
-            'platform', 'unread_messages_count', 'last_messaged_at', 'created_at', 'updated_at'
+            'id', 'wa_id', 'first_name', 'last_name', 'email', 'label', 'labels',
+            'platform', 'unread_messages_count', 'last_messaged_at', 'created_at', 'updated_at',
+            'last_message_body', 'last_message_sender'
         ]
+
+    def get_label(self, obj):
+        first_label = obj.labels.order_by('name').first()
+        return first_label.name if first_label else None
+
+    def _normalize_labels(self, validated_data):
+        labels = validated_data.pop('labels', None)
+        if labels is None and self.initial_data is not None:
+            raw_label = self.initial_data.get('label')
+            if raw_label:
+                labels = [lbl.strip() for lbl in str(raw_label).split(',') if lbl.strip()]
+        return labels
+
+    def _resolve_label_objects(self, vendor, labels):
+        label_objs = []
+        for label_name in labels or []:
+            label_obj, _ = ContactLabel.objects.get_or_create(vendor=vendor, name=label_name)
+            label_objs.append(label_obj)
+        return label_objs
+
+    def create(self, validated_data):
+        labels = self._normalize_labels(validated_data)
+        contact = super().create(validated_data)
+        if labels:
+            contact.labels.set(self._resolve_label_objects(contact.vendor, labels))
+        return contact
+
+    def update(self, instance, validated_data):
+        labels = self._normalize_labels(validated_data)
+        contact = super().update(instance, validated_data)
+        if labels is not None:
+            contact.labels.set(self._resolve_label_objects(contact.vendor, labels))
+        return contact
+
+    def get_last_message_body(self, obj):
+        message = obj.messages.order_by('-messaged_at').first()
+        return message.message_body if message else ''
+
+    def get_last_message_sender(self, obj):
+        message = obj.messages.order_by('-messaged_at').first()
+        if not message:
+            return None
+        return 'Bot' if not message.is_incoming else 'User'
 
 class WhatsAppTemplateSerializer(serializers.ModelSerializer):
     class Meta:

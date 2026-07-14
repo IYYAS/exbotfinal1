@@ -1,7 +1,8 @@
 
-from ..models import Contact, CustomField, ContactCustomField
+from ..models import Contact, CustomField, ContactCustomField, WhatsAppMessageLog
 import random
 import string
+
 
 def resolve_variables(text: str, wa_id: str, vendor) -> str:
     """Replace {{first_name}}, {{last_name}}, {{full_name}}, {{phone}} etc. with contact data."""
@@ -25,6 +26,47 @@ def resolve_variables(text: str, wa_id: str, vendor) -> str:
     return text
 
 
+def _get_or_create_contact(wa_id: str, vendor):
+    contact = Contact.objects.filter(vendor=vendor, wa_id=wa_id).first()
+    if not contact:
+        contact = Contact.objects.create(
+            vendor=vendor,
+            wa_id=wa_id,
+            platform='whatsapp',
+            first_name='New Contact'
+        )
+    return contact
+
+
+def _extract_wamid_from_result(result):
+    if isinstance(result, dict):
+        messages = result.get('messages')
+        if isinstance(messages, list) and messages:
+            return messages[0].get('id')
+    return None
+
+
+def _log_outgoing_message(wa_id: str, vendor, message_type: str, message_body: str, result, attachment: str | None = None):
+    contact = _get_or_create_contact(wa_id, vendor)
+    status = 'failed' if isinstance(result, dict) and 'error' in result else 'sent'
+    wamid = _extract_wamid_from_result(result)
+    log = WhatsAppMessageLog.objects.create(
+        vendor=vendor,
+        contact=contact,
+        contact_wa_id=wa_id,
+        is_incoming=False,
+        status=status,
+        wamid=wamid,
+        message_body=message_body,
+        message_type=message_type,
+        platform='whatsapp',
+        attachment=attachment,
+        data=result if isinstance(result, dict) else {}
+    )
+    print(f"    ✅ Logged outgoing {message_type}: wa_id={wa_id}, status={status}, wamid={wamid}, log_id={log.id}")
+    return log
+
+
 class TextHandler:
     """Handles 'text' / 'text node' flow nodes."""
 
@@ -33,7 +75,8 @@ class TextHandler:
         text = data.get('textMessage') or data.get('text', '')
         if text:
             text = resolve_variables(text, wa_id, vendor)
-            client.send_message(wa_id, text)
+            result = client.send_message(wa_id, text)
+            _log_outgoing_message(wa_id, vendor, 'text', text, result)
             print(f"    ✉️  Sent text: {text[:60]}")
 
 
@@ -46,10 +89,12 @@ class ImageHandler:
         media_id = data.get('media_id')
         caption = resolve_variables(data.get('caption', ''), wa_id, vendor)
         if media_id:
-            client.send_media_message(wa_id, 'image', media_id=media_id, caption=caption)
+            result = client.send_media_message(wa_id, 'image', media_id=media_id, caption=caption)
+            _log_outgoing_message(wa_id, vendor, 'image', caption or '[IMAGE]', result, attachment=media_id)
             print(f"    🖼️  Sent image using media_id: {media_id}")
         elif url:
-            client.send_media_message(wa_id, 'image', media_url=url, caption=caption)
+            result = client.send_media_message(wa_id, 'image', media_url=url, caption=caption)
+            _log_outgoing_message(wa_id, vendor, 'image', caption or '[IMAGE]', result, attachment=url)
             print(f"    🖼️  Sent image: {url[:60]}")
 
 
@@ -62,10 +107,12 @@ class VideoHandler:
         media_id = data.get('media_id')
         caption = resolve_variables(data.get('caption', ''), wa_id, vendor)
         if media_id:
-            client.send_media_message(wa_id, 'video', media_id=media_id, caption=caption)
+            result = client.send_media_message(wa_id, 'video', media_id=media_id, caption=caption)
+            _log_outgoing_message(wa_id, vendor, 'video', caption or '[VIDEO]', result, attachment=media_id)
             print(f"    📹  Sent video using media_id: {media_id}")
         elif url:
-            client.send_media_message(wa_id, 'video', media_url=url, caption=caption)
+            result = client.send_media_message(wa_id, 'video', media_url=url, caption=caption)
+            _log_outgoing_message(wa_id, vendor, 'video', caption or '[VIDEO]', result, attachment=url)
             print(f"    📹  Sent video")
 
 
@@ -77,10 +124,12 @@ class AudioHandler:
         url = data.get('url') or data.get('file', '')
         media_id = data.get('media_id')
         if media_id:
-            client.send_media_message(wa_id, 'audio', media_id=media_id)
+            result = client.send_media_message(wa_id, 'audio', media_id=media_id)
+            _log_outgoing_message(wa_id, vendor, 'audio', '[AUDIO]', result, attachment=media_id)
             print(f"    🎵  Sent audio using media_id: {media_id}")
         elif url:
-            client.send_media_message(wa_id, 'audio', media_url=url)
+            result = client.send_media_message(wa_id, 'audio', media_url=url)
+            _log_outgoing_message(wa_id, vendor, 'audio', '[AUDIO]', result, attachment=url)
             print(f"    🎵  Sent audio")
 
 
@@ -93,10 +142,12 @@ class DocumentHandler:
         media_id = data.get('media_id')
         filename = data.get('filename', 'document')
         if media_id:
-            client.send_media_message(wa_id, 'document', media_id=media_id, filename=filename)
+            result = client.send_media_message(wa_id, 'document', media_id=media_id, filename=filename)
+            _log_outgoing_message(wa_id, vendor, 'document', filename, result, attachment=media_id)
             print(f"    📄  Sent document using media_id: {media_id}")
         elif url:
-            client.send_media_message(wa_id, 'document', media_url=url, filename=filename)
+            result = client.send_media_message(wa_id, 'document', media_url=url, filename=filename)
+            _log_outgoing_message(wa_id, vendor, 'document', filename, result, attachment=url)
             print(f"    📄  Sent document: {filename}")
 
 
@@ -122,7 +173,8 @@ class LocationHandler:
                     "address": addr
                 }
             }
-            client._make_request("POST", f"{client.phone_number_id}/messages", payload)
+            result = client._make_request("POST", f"{client.phone_number_id}/messages", payload)
+            _log_outgoing_message(wa_id, vendor, 'location', f"Location: {loc_name or lat},{lon}", result)
             print(f"    📍  Sent location ({lat}, {lon})")
 
 
@@ -145,7 +197,7 @@ class InteractiveHandler:
             button_url = data.get('button_url', data.get('url', ''))
             
             if button_url and body_text:
-                client.send_cta_url_button(
+                result = client.send_cta_url_button(
                     wa_id,
                     body_text=body_text,
                     button_text=button_text,
@@ -153,6 +205,7 @@ class InteractiveHandler:
                     header_text=header_text,
                     footer_text=footer_text
                 )
+                _log_outgoing_message(wa_id, vendor, 'interactive', body_text, result, attachment=button_url)
                 print(f"    🔗  Sent CTA button")
             return
 
@@ -168,7 +221,7 @@ class InteractiveHandler:
             button_text = data.get('button_text') or data.get('buttonText') or 'Visit Website'
             button_url = data.get('button_url') or data.get('url') or ''
             if button_url and text:
-                client.send_cta_url_button(
+                result = client.send_cta_url_button(
                     wa_id,
                     body_text=text,
                     button_text=button_text,
@@ -176,6 +229,7 @@ class InteractiveHandler:
                     header_text=header_text,
                     footer_text=footer_text
                 )
+                _log_outgoing_message(wa_id, vendor, 'interactive', text, result, attachment=button_url)
                 print(f"    🔗  Sent CTA button via interactive_type=cta_url")
             else:
                 print(f"    ⚠️  Skipping CTA URL interactive message: missing body text or URL")
@@ -198,7 +252,8 @@ class InteractiveHandler:
                     interactive_data['header'] = {'type': 'text', 'text': header_text}
                 if footer_text:
                     interactive_data['footer'] = {'text': footer_text}
-                client.send_interactive_message(wa_id, interactive_data)
+                result = client.send_interactive_message(wa_id, interactive_data)
+                _log_outgoing_message(wa_id, vendor, 'interactive', text, result)
                 print(f"    🔄  Sent flow interactive message for flow_id={flow_id}")
             else:
                 print(f"    ⚠️  Skipping Flow interactive message: missing flow_id")
@@ -350,7 +405,8 @@ class InteractiveHandler:
                 interactive_data["footer"] = {"text": footer_text}
                 print(f"    📄  Interactive footer: {footer_text}")
 
-            client.send_interactive_message(wa_id, interactive_data)
+            result = client.send_interactive_message(wa_id, interactive_data)
+            _log_outgoing_message(wa_id, vendor, 'interactive', text or interactive_data.get('body', {}).get('text', ''), result)
             if interactive_data["type"] == "list":
                 print(f"    📜  Sent interactive list with {len(sections)} sections")
             else:
@@ -358,7 +414,8 @@ class InteractiveHandler:
         else:
             text_body = text or data.get('body', '')
             if text_body:
-                client.send_message(wa_id, text_body)
+                result = client.send_message(wa_id, text_body)
+                _log_outgoing_message(wa_id, vendor, 'text', text_body, result)
 
 
 class ButtonHandler:
@@ -422,7 +479,8 @@ class ListMessageHandler:
             }
             if footer_text:
                 interactive_data['footer'] = {'text': footer_text}
-            client.send_interactive_message(wa_id, interactive_data)
+            result = client.send_interactive_message(wa_id, interactive_data)
+            _log_outgoing_message(wa_id, vendor, 'interactive', text, result)
             print(f"    📜  Sent list message with {len(sections)} section(s)")
         else:
             print(f"    ⚠️  List message node has no sections/rows configured, skipping send")
@@ -490,7 +548,8 @@ class TemplateHandler:
 
         if template_name:
             try:
-                client.send_template_message(wa_id, template_name, language, components=components)
+                result = client.send_template_message(wa_id, template_name, language, components=components)
+                _log_outgoing_message(wa_id, vendor, 'template', f"Template: {template_name}", result)
                 print(f"    📄  Sent template message: {template_name}")
             except Exception as e:
                 print(f"    ❌  Failed to send template message {template_name}: {e}")
@@ -509,7 +568,7 @@ class SequenceSubscribeHandler:
         # Enforce flow-level label matching before performing any sequence subscription.
         if flow and getattr(flow, 'label', None):
             contact = Contact.objects.filter(vendor=vendor, wa_id=wa_id).first()
-            if not contact or not getattr(contact, 'label', None) or str(contact.label).strip().lower() != str(flow.label).strip().lower():
+            if not contact or not contact.labels.filter(name__iexact=str(flow.label).strip()).exists():
                 print(f"    ⚠️  Skipping sequence subscribe for {wa_id}: contact label does not match flow label '{flow.label}'")
                 return
 
@@ -587,9 +646,14 @@ class LabelAssignHandler:
         
         contact = Contact.objects.filter(vendor=vendor, wa_id=wa_id).first()
         if contact:
-            contact.label = assign_label
-            contact.save(update_fields=['label'])
-            print(f"    SUCCESS: Assigned label '{assign_label}' to contact {wa_id}")
+            label_names = [lbl.strip() for lbl in assign_label.split(',') if lbl.strip()]
+            assigned = []
+            for label_name in label_names:
+                label_obj, _ = ContactLabel.objects.get_or_create(vendor=vendor, name=label_name)
+                assigned.append(label_obj)
+            if assigned:
+                contact.labels.add(*assigned)
+            print(f"    SUCCESS: Assigned label(s) '{', '.join(label_names)}' to contact {wa_id}")
         else:
             print(f"    ⚠️  Could not assign label to {wa_id}: Contact not found")
 

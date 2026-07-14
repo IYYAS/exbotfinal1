@@ -146,16 +146,16 @@ const SequenceManager: React.FC = () => {
   );
 
   const statusColor = (s: string) =>
-    s === 'active' ? '#22c55e' : s === 'completed' ? '#3b82f6' : s === 'failed' ? '#ef4444' : '#64748b';
+    s === 'active' ? 'var(--success-color)' : s === 'completed' ? 'var(--info-color)' : s === 'failed' ? 'var(--danger-color)' : 'var(--text-secondary)';
 
   const statusBg = (s: string) =>
-    s === 'active' ? 'rgba(34,197,94,0.12)' : s === 'completed' ? 'rgba(59,130,246,0.12)' : s === 'failed' ? 'rgba(239,68,68,0.12)' : 'rgba(100,116,139,0.1)';
+    s === 'active' ? 'var(--success-bg)' : s === 'completed' ? 'var(--info-bg)' : s === 'failed' ? 'var(--danger-bg)' : 'var(--warning-bg)';
 
   const deliveryStatusIcon = (s: string) => {
-    if (s === 'sent') return <CheckCircle size={13} color="#22c55e" />;
-    if (s === 'failed') return <XCircle size={13} color="#ef4444" />;
-    if (s === 'pending') return <Clock size={13} color="#fbbf24" />;
-    return <AlertTriangle size={13} color="#94a3b8" />;
+    if (s === 'sent') return <CheckCircle size={13} color="var(--success-color)" />;
+    if (s === 'failed') return <XCircle size={13} color="var(--danger-color)" />;
+    if (s === 'pending') return <Clock size={13} color="var(--warning-color)" />;
+    return <AlertTriangle size={13} color="var(--text-secondary)" />;
   };
 
   const formatDate = (dt: string) => {
@@ -164,21 +164,21 @@ const SequenceManager: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', height: '100%', minHeight: 'calc(100vh - 120px)', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 12, overflow: 'hidden', fontFamily: "'Inter', sans-serif" }}>
+    <div style={{ display: 'flex', height: '100%', minHeight: 'calc(100vh - 120px)', background: 'var(--surface-color)', border: '1px solid var(--border-color)', borderRadius: 12, overflow: 'hidden', fontFamily: 'var(--font-family)' }}>
 
       {/* ── LEFT: Campaign List Panel ─────────────────────────────────────────── */}
       <div style={{ width: 320, background: 'var(--bg-color)', borderRight: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', flexShrink: 0 }}>
 
         {/* Header */}
-        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid #1e293b' }}>
+        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <div>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#f1f5f9' }}>Sequences</h2>
-              <p style={{ margin: '4px 0 0', fontSize: 12, color: '#64748b' }}>All active drip campaigns powered by Flow Builder</p>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--text-primary)' }}>Sequences</h2>
+              <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-secondary)' }}>All active drip campaigns powered by Flow Builder</p>
             </div>
             <button
               onClick={fetchCampaigns}
-              style={{ border: 'none', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', cursor: 'pointer', padding: '8px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+              style={{ border: 'none', background: 'var(--accent-bg)', color: 'var(--accent-color)', cursor: 'pointer', padding: '8px 12px', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--accent-border)' }}
               title="Refresh"
             >
               <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
@@ -188,22 +188,22 @@ const SequenceManager: React.FC = () => {
 
           {/* Search */}
           <div style={{ position: 'relative' }}>
-            <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#475569' }} />
+            <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
             <input
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="Search campaigns..."
-              style={{ width: '100%', padding: '7px 10px 7px 30px', background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#f8fafc', fontSize: 12, boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '7px 10px 7px 30px', background: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: 8, color: 'var(--text-primary)', fontSize: 12, boxSizing: 'border-box' }}
             />
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-            <div style={{ flex: 1, minWidth: 98, background: '#111827', border: '1px solid #1e293b', borderRadius: 12, padding: '10px 12px' }}>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Campaigns</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#f8fafc' }}>{campaigns.length}</div>
+            <div style={{ flex: 1, minWidth: 98, background: 'var(--surface-muted)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '10px 12px' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Campaigns</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{campaigns.length}</div>
             </div>
-            <div style={{ flex: 1, minWidth: 98, background: '#111827', border: '1px solid #1e293b', borderRadius: 12, padding: '10px 12px' }}>
-              <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 4 }}>Selected</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#f8fafc' }}>{selectedCampaign ? 1 : 0}</div>
+            <div style={{ flex: 1, minWidth: 98, background: 'var(--surface-muted)', border: '1px solid var(--border-color)', borderRadius: 12, padding: '10px 12px' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>Selected</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{selectedCampaign ? 1 : 0}</div>
             </div>
           </div>
         </div>
@@ -211,13 +211,13 @@ const SequenceManager: React.FC = () => {
         {/* Campaign List */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
           {loading && campaigns.length === 0 && (
-            <div style={{ padding: '40px 16px', textAlign: 'center', color: '#475569', fontSize: 13 }}>Loading campaigns...</div>
+            <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: 13 }}>Loading campaigns...</div>
           )}
           {!loading && filteredCampaigns.length === 0 && (
             <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-              <Activity size={32} color="#334155" style={{ margin: '0 auto 12px' }} />
-              <div style={{ color: '#475569', fontSize: 13, fontWeight: 600 }}>No campaigns yet</div>
-              <div style={{ color: '#334155', fontSize: 11, marginTop: 4 }}>Build a sequence in the Flow Builder using Sequence Campaign nodes</div>
+              <Activity size={32} color="var(--text-secondary)" style={{ margin: '0 auto 12px' }} />
+              <div style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600 }}>No campaigns yet</div>
+              <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 4 }}>Build a sequence in the Flow Builder using Sequence Campaign nodes</div>
             </div>
           )}
           {filteredCampaigns.map((c, i) => {
@@ -231,32 +231,32 @@ const SequenceManager: React.FC = () => {
                   padding: '14px 14px',
                   borderRadius: 14,
                   cursor: 'pointer',
-                  background: isSelected ? 'rgba(59,130,246,0.12)' : '#111827',
-                  border: `1px solid ${isSelected ? '#3b82f6' : '#1f2937'}`,
+                  background: isSelected ? 'var(--accent-bg)' : 'var(--surface-muted)',
+                  border: isSelected ? '1px solid var(--accent-color)' : '1px solid var(--border-color)',
                   transition: 'all 0.15s',
-                  boxShadow: isSelected ? '0 10px 20px rgba(59,130,246,0.08)' : 'none',
+                  boxShadow: isSelected ? 'var(--card-shadow-soft)' : 'none',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: '#f8fafc', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {c.campaign_name}
                     </div>
-                    <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {c.flow_name}
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, color: '#22c55e', background: 'rgba(34,197,94,0.12)', padding: '4px 8px', borderRadius: 999 }}>
+                      <span style={{ fontSize: 10, color: 'var(--success-color)', background: 'var(--success-bg)', padding: '4px 8px', borderRadius: 999 }}>
                         {c.active_count} active
                       </span>
-                      <span style={{ fontSize: 10, color: '#94a3b8', background: 'rgba(148, 163, 184, 0.1)', padding: '4px 8px', borderRadius: 999 }}>
+                      <span style={{ fontSize: 10, color: 'var(--text-secondary)', background: 'var(--surface-alt-soft)', padding: '4px 8px', borderRadius: 999 }}>
                         {c.total_enrolled} total
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={(e) => { e.stopPropagation(); navigate(`/flow-builder/${c.flow_id}`); }}
-                    style={{ border: 'none', background: 'rgba(59,130,246,0.15)', color: '#60a5fa', padding: '8px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+                    style={{ border: 'none', background: 'var(--accent-bg)', color: 'var(--accent-color)', padding: '8px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 11, fontWeight: 600, border: '1px solid var(--accent-border)' }}
                   >
                     Edit
                   </button>
@@ -272,50 +272,50 @@ const SequenceManager: React.FC = () => {
 
         {!selectedCampaign ? (
           /* Empty State */
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', background: 'linear-gradient(180deg, #0b1120 0%, #111827 100%)' }}>
-            <div style={{ width: 88, height: 88, borderRadius: 24, background: 'rgba(96,165,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 22 }}>
-              <Activity size={36} color="#60a5fa" />
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', background: 'var(--surface-color)' }}>
+            <div style={{ width: 88, height: 88, borderRadius: 24, background: 'var(--info-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 22 }}>
+              <Activity size={36} color="var(--info-color)" />
             </div>
-            <h3 style={{ color: '#e2e8f0', margin: '0 0 10px', fontSize: 20, fontWeight: 700 }}>Select a Sequence Campaign</h3>
-            <p style={{ margin: 0, fontSize: 13, color: '#94a3b8', textAlign: 'center', maxWidth: 380, lineHeight: 1.6 }}>
+            <h3 style={{ color: 'var(--text-primary)', margin: '0 0 10px', fontSize: 20, fontWeight: 700 }}>Select a Sequence Campaign</h3>
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)', textAlign: 'center', maxWidth: 380, lineHeight: 1.6 }}>
               Choose a campaign from the left panel to view enrolled contacts, delivery status, and flow analytics.
             </p>
             <button
               onClick={() => navigate('/bot-reply')}
-              style={{ marginTop: 24, padding: '12px 20px', background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', border: 'none', borderRadius: 999, color: '#fff', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
+              style={{ marginTop: 24, padding: '12px 20px', background: 'var(--accent-gradient)', border: 'none', borderRadius: 999, color: 'var(--surface-color)', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}
             >
               Go to Flow Builder
             </button>
-            <div style={{ marginTop: 22, padding: '14px 18px', background: '#0f172a', border: '1px solid #1f2937', borderRadius: 14, fontSize: 12, color: '#94a3b8', width: 360, textAlign: 'center' }}>
-              💡 Build sequences in <strong style={{ color: '#60a5fa' }}>WhatsApp Automation → Flow Builder</strong> using the <strong style={{ color: '#60a5fa' }}>Sequence Campaign</strong> node.
+            <div style={{ marginTop: 22, padding: '14px 18px', background: 'var(--surface-muted)', border: '1px solid var(--border-color)', borderRadius: 14, fontSize: 12, color: 'var(--text-secondary)', width: 360, textAlign: 'center' }}>
+              💡 Build sequences in <strong style={{ color: 'var(--accent-color)' }}>WhatsApp Automation → Flow Builder</strong> using the <strong style={{ color: 'var(--accent-color)' }}>Sequence Campaign</strong> node.
             </div>
           </div>
         ) : (
           <>
             {/* Campaign Header */}
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid #1e293b', background: '#111827' }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', background: 'var(--surface-muted)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <Activity size={20} color="#fff" />
+                    <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Activity size={20} color="var(--surface-color)" />
                     </div>
                     <div>
-                      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>{selectedCampaign.campaign_name}</h2>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Flow: {selectedCampaign.flow_name}</div>
+                      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{selectedCampaign.campaign_name}</h2>
+                      <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Flow: {selectedCampaign.flow_name}</div>
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     onClick={() => { fetchEnrollments(selectedCampaign); fetchCampaigns(); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, color: '#60a5fa', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--accent-bg)', border: '1px solid var(--accent-border)', borderRadius: 8, color: 'var(--accent-color)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
                   >
                     <RefreshCw size={13} /> Refresh
                   </button>
                   <button
                     onClick={() => navigate(`/flow-builder/${selectedCampaign.flow_id}`)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: '#3b82f6', border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'var(--accent-color)', border: 'none', borderRadius: 8, color: 'var(--surface-color)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}
                   >
                     <ChevronRight size={13} /> Open Flow Builder
                   </button>
@@ -325,14 +325,14 @@ const SequenceManager: React.FC = () => {
               {/* Stats Row */}
               <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
                 {[
-                  { label: 'Total Enrolled', value: selectedCampaign.total_enrolled, color: '#94a3b8', icon: <Users size={14} /> },
-                  { label: 'Active', value: selectedCampaign.active_count, color: '#22c55e', icon: <Play size={14} /> },
-                  { label: 'Completed', value: selectedCampaign.completed_count, color: '#3b82f6', icon: <CheckCircle size={14} /> },
-                  { label: 'Msgs Sent', value: selectedCampaign.sent_deliveries, color: '#a78bfa', icon: <Send size={14} /> },
-                  { label: 'Msgs Pending', value: selectedCampaign.pending_deliveries, color: '#fbbf24', icon: <Clock size={14} /> },
-                  { label: 'Msgs Failed', value: selectedCampaign.failed_deliveries, color: '#ef4444', icon: <XCircle size={14} /> },
+                  { label: 'Total Enrolled', value: selectedCampaign.total_enrolled, color: 'var(--text-secondary)', icon: <Users size={14} /> },
+                  { label: 'Active', value: selectedCampaign.active_count, color: 'var(--success-color)', icon: <Play size={14} /> },
+                  { label: 'Completed', value: selectedCampaign.completed_count, color: 'var(--info-color)', icon: <CheckCircle size={14} /> },
+                  { label: 'Msgs Sent', value: selectedCampaign.sent_deliveries, color: 'var(--purple-color)', icon: <Send size={14} /> },
+                  { label: 'Msgs Pending', value: selectedCampaign.pending_deliveries, color: 'var(--warning-color)', icon: <Clock size={14} /> },
+                  { label: 'Msgs Failed', value: selectedCampaign.failed_deliveries, color: 'var(--danger-color)', icon: <XCircle size={14} /> },
                 ].map((stat, i) => (
-                  <div key={i} style={{ flex: 1, background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div key={i} style={{ flex: 1, background: 'var(--surface-muted)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: stat.color }}>{stat.icon}<span style={{ fontSize: 10, fontWeight: 600 }}>{stat.label}</span></div>
                     <div style={{ fontSize: 22, fontWeight: 700, color: stat.color }}>{stat.value}</div>
                   </div>
@@ -347,8 +347,8 @@ const SequenceManager: React.FC = () => {
                     onClick={() => setActiveTab(tab)}
                     style={{
                       padding: '7px 16px', borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none',
-                      background: activeTab === tab ? '#3b82f6' : 'rgba(255,255,255,0.05)',
-                      color: activeTab === tab ? '#fff' : '#64748b',
+                      background: activeTab === tab ? 'var(--accent-color)' : 'var(--surface-alt-soft)',
+                      color: activeTab === tab ? 'var(--surface-color)' : 'var(--text-secondary)',
                       textTransform: 'capitalize'
                     }}
                   >
@@ -364,8 +364,8 @@ const SequenceManager: React.FC = () => {
               {/* ── Overview Tab ── */}
               {activeTab === 'overview' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 20 }}>
-                    <h4 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>📊 Campaign Overview</h4>
+                  <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 20 }}>
+                    <h4 style={{ margin: '0 0 16px', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>📊 Campaign Overview</h4>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                       {/* Completion rate bar */}
                       {selectedCampaign.total_enrolled > 0 && (
@@ -375,8 +375,8 @@ const SequenceManager: React.FC = () => {
                               <span>Completion Rate</span>
                               <span>{Math.round((selectedCampaign.completed_count / selectedCampaign.total_enrolled) * 100)}%</span>
                             </div>
-                            <div style={{ height: 8, background: '#334155', borderRadius: 4, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${(selectedCampaign.completed_count / selectedCampaign.total_enrolled) * 100}%`, background: 'linear-gradient(90deg,#3b82f6,#8b5cf6)', borderRadius: 4, transition: 'width 0.5s' }} />
+                            <div style={{ height: 8, background: 'var(--surface-alt)', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${(selectedCampaign.completed_count / selectedCampaign.total_enrolled) * 100}%`, background: 'var(--accent-gradient)', borderRadius: 4, transition: 'width 0.5s' }} />
                             </div>
                           </div>
                           <div>
@@ -388,8 +388,8 @@ const SequenceManager: React.FC = () => {
                                   : 0}%
                               </span>
                             </div>
-                            <div style={{ height: 8, background: '#334155', borderRadius: 4, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${selectedCampaign.sent_deliveries + selectedCampaign.failed_deliveries > 0 ? (selectedCampaign.sent_deliveries / (selectedCampaign.sent_deliveries + selectedCampaign.failed_deliveries)) * 100 : 0}%`, background: 'linear-gradient(90deg,#22c55e,#16a34a)', borderRadius: 4 }} />
+                            <div style={{ height: 8, background: 'var(--surface-alt)', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${selectedCampaign.sent_deliveries + selectedCampaign.failed_deliveries > 0 ? (selectedCampaign.sent_deliveries / (selectedCampaign.sent_deliveries + selectedCampaign.failed_deliveries)) * 100 : 0}%`, background: 'var(--success-bg)', borderRadius: 4 }} />
                             </div>
                           </div>
                         </>
@@ -397,12 +397,12 @@ const SequenceManager: React.FC = () => {
                     </div>
                   </div>
 
-                  <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, padding: 20 }}>
-                    <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>ℹ️ How This Sequence Works</h4>
-                    <div style={{ fontSize: 12, color: '#64748b', lineHeight: 1.7 }}>
-                      <p style={{ margin: '0 0 8px' }}>When a contact reaches the <strong style={{ color: '#60a5fa' }}>{selectedCampaign.campaign_name}</strong> node in the <strong style={{ color: '#60a5fa' }}>{selectedCampaign.flow_name}</strong> flow, they are automatically enrolled in this sequence campaign.</p>
-                      <p style={{ margin: '0 0 8px' }}>🟢 <strong style={{ color: '#22c55e' }}>Within 24h</strong> of their last interaction — text or template messages are sent.</p>
-                      <p style={{ margin: 0 }}>🔴 <strong style={{ color: '#f87171' }}>Outside 24h</strong> — only the fallback template is sent (WhatsApp policy).</p>
+                  <div style={{ background: 'var(--surface-muted)', border: '1px solid var(--border-color)', borderRadius: 12, padding: 20 }}>
+                    <h4 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>ℹ️ How This Sequence Works</h4>
+                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                      <p style={{ margin: '0 0 8px' }}>When a contact reaches the <strong style={{ color: 'var(--accent-color)' }}>{selectedCampaign.campaign_name}</strong> node in the <strong style={{ color: 'var(--accent-color)' }}>{selectedCampaign.flow_name}</strong> flow, they are automatically enrolled in this sequence campaign.</p>
+                      <p style={{ margin: '0 0 8px' }}>🟢 <strong style={{ color: 'var(--success-color)' }}>Within 24h</strong> of their last interaction — text or template messages are sent.</p>
+                      <p style={{ margin: 0 }}>🔴 <strong style={{ color: 'var(--danger-color)' }}>Outside 24h</strong> — only the fallback template is sent (WhatsApp policy).</p>
                     </div>
                   </div>
                 </div>
@@ -412,11 +412,11 @@ const SequenceManager: React.FC = () => {
               {activeTab === 'enrollments' && (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>Enrolled Contacts ({enrollments.length})</h4>
+                    <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Enrolled Contacts ({enrollments.length})</h4>
                   </div>
                   {enrollments.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#475569' }}>
-                      <Users size={32} color="#334155" style={{ margin: '0 auto 12px' }} />
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
+                      <Users size={32} color="var(--text-secondary)" style={{ margin: '0 auto 12px' }} />
                       <div style={{ fontSize: 13, fontWeight: 600 }}>No contacts enrolled yet</div>
                       <div style={{ fontSize: 11, marginTop: 4 }}>Contacts will appear here when they reach this sequence node in your flow</div>
                     </div>
@@ -426,8 +426,8 @@ const SequenceManager: React.FC = () => {
                         <div
                           key={enroll.id}
                           style={{
-                            background: '#1e293b',
-                            border: `1px solid ${selectedEnrollment?.id === enroll.id ? '#3b82f6' : '#334155'}`,
+                            background: 'var(--surface-muted)',
+                            border: `1px solid ${selectedEnrollment?.id === enroll.id ? 'var(--accent-color)' : 'var(--border-color)'}`,
                             borderRadius: 10,
                             padding: '12px 16px',
                             display: 'flex',
@@ -439,12 +439,12 @@ const SequenceManager: React.FC = () => {
                           onClick={() => handleSelectEnrollment(enroll)}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'linear-gradient(135deg,#334155,#475569)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#94a3b8', flexShrink: 0 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)', flexShrink: 0 }}>
                               {(enroll.contact_name || enroll.contact_wa_id || '?')[0].toUpperCase()}
                             </div>
                             <div>
-                              <div style={{ fontWeight: 600, fontSize: 13, color: '#f1f5f9' }}>{enroll.contact_name || enroll.contact_wa_id}</div>
-                              <div style={{ fontSize: 11, color: '#64748b' }}>+{enroll.contact_wa_id} · Enrolled {formatDate(enroll.enrolled_at)}</div>
+                              <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text-primary)' }}>{enroll.contact_name || enroll.contact_wa_id}</div>
+                              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>+{enroll.contact_wa_id} · Enrolled {formatDate(enroll.enrolled_at)}</div>
                               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                                 <span style={{ fontSize: 10, color: '#a78bfa' }}>📤 {enroll.sent_count || 0} sent</span>
                                 <span style={{ fontSize: 10, color: '#fbbf24' }}>⏳ {enroll.pending_count || 0} pending</span>
@@ -459,7 +459,7 @@ const SequenceManager: React.FC = () => {
                               <button
                                 onClick={(e) => { e.stopPropagation(); cancelEnrollment(enroll.id); }}
                                 title="Cancel Enrollment"
-                                style={{ border: 'none', background: 'rgba(239,68,68,0.1)', color: '#ef4444', cursor: 'pointer', padding: '5px', borderRadius: 6, display: 'flex' }}
+                                style={{ border: 'none', background: 'var(--danger-bg)', color: 'var(--danger-color)', cursor: 'pointer', padding: '5px', borderRadius: 6, display: 'flex' }}
                               >
                                 <Pause size={12} />
                               </button>
@@ -479,7 +479,7 @@ const SequenceManager: React.FC = () => {
                   <div style={{ marginBottom: 16 }}>
                     {selectedEnrollment ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>
+                        <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>
                           Message Schedule — {selectedEnrollment.contact_name || selectedEnrollment.contact_wa_id}
                         </h4>
                         <span style={{ fontSize: 11, color: statusColor(selectedEnrollment.status), background: statusBg(selectedEnrollment.status), padding: '2px 8px', borderRadius: 10, fontWeight: 600, textTransform: 'capitalize' }}>
@@ -487,12 +487,12 @@ const SequenceManager: React.FC = () => {
                         </span>
                       </div>
                     ) : (
-                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#f1f5f9' }}>Select an enrollment from the Enrollments tab to view its message schedule</h4>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Select an enrollment from the Enrollments tab to view its message schedule</h4>
                     )}
                   </div>
                   {deliveries.length === 0 && selectedEnrollment && (
-                    <div style={{ textAlign: 'center', padding: '40px 0', color: '#475569' }}>
-                      <Clock size={32} color="#334155" style={{ margin: '0 auto 12px' }} />
+                    <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>
+                      <Clock size={32} color="var(--text-secondary)" style={{ margin: '0 auto 12px' }} />
                       <div style={{ fontSize: 13 }}>No deliveries found for this enrollment</div>
                     </div>
                   )}
@@ -501,30 +501,30 @@ const SequenceManager: React.FC = () => {
                       {deliveries.map((d: any, i: number) => (
                         <div
                           key={d.id}
-                          style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '12px 16px' }}
+                          style={{ background: 'var(--surface-muted)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '12px 16px' }}
                         >
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#94a3b8', flexShrink: 0 }}>
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--surface-alt)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', flexShrink: 0 }}>
                                 {i + 1}
                               </div>
                               <div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: '#f1f5f9' }}>Step {i + 1}</div>
-                                <div style={{ fontSize: 11, color: '#64748b' }}>Node: {d.node_id}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>Step {i + 1}</div>
+                                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Node: {d.node_id}</div>
                               </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginBottom: 4 }}>
                                 {deliveryStatusIcon(d.status)}
-                                <span style={{ fontSize: 11, fontWeight: 700, color: d.status === 'sent' ? '#22c55e' : d.status === 'failed' ? '#ef4444' : d.status === 'pending' ? '#fbbf24' : '#94a3b8', textTransform: 'capitalize' }}>
+                                <span style={{ fontSize: 11, fontWeight: 700, color: d.status === 'sent' ? 'var(--success-color)' : d.status === 'failed' ? 'var(--danger-color)' : d.status === 'pending' ? 'var(--warning-color)' : 'var(--text-secondary)', textTransform: 'capitalize' }}>
                                   {d.status}
                                 </span>
                               </div>
-                              <div style={{ fontSize: 10, color: '#475569' }}>
+                              <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>
                                 {d.status === 'pending' ? `⏳ Scheduled: ${formatDate(d.scheduled_at)}` : d.status === 'sent' ? `✅ Sent: ${formatDate(d.sent_at)}` : `Scheduled: ${formatDate(d.scheduled_at)}`}
                               </div>
                               {d.error_message && (
-                                <div style={{ fontSize: 10, color: '#ef4444', marginTop: 2, maxWidth: 240, textAlign: 'right' }}>⚠️ {d.error_message}</div>
+                                <div style={{ fontSize: 10, color: 'var(--danger-color)', marginTop: 2, maxWidth: 240, textAlign: 'right' }}>⚠️ {d.error_message}</div>
                               )}
                             </div>
                           </div>

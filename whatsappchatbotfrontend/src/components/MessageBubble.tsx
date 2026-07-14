@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, CheckCheck, AlertCircle, Download } from 'lucide-react';
 import type { MessageLog, ContactInfo } from '../types';
 import { BACKEND_URL } from '../api';
+import { useTheme } from '../context/ThemeContext';
 
 interface MessageBubbleProps {
   message: MessageLog;
@@ -26,7 +27,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   onContextMenu,
   onQuotedClick,
 }) => {
+  const { isDarkMode } = useTheme();
   const isIncoming = message.is_incoming;
+  const [imgError, setImgError] = useState(false);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -61,8 +64,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       {/* Message Bubble */}
       <div
         style={{
-          background: isIncoming ? '#202c33' : '#005c4b',
-          color: '#e9edef',
+          background: isIncoming ? (isDarkMode ? '#202c33' : '#e5f5f1') : (isDarkMode ? '#005c4b' : '#d1fae5'),
+          color: isDarkMode ? '#e9edef' : '#0f172a',
           borderRadius: '12px',
           padding: '8px 12px',
           fontSize: '14.5px',
@@ -82,13 +85,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               onQuotedClick(parentMsg.wamid || '');
             }}
             style={{
-              background: 'rgba(0, 0, 0, 0.18)',
+              background: isDarkMode ? 'rgba(0, 0, 0, 0.18)' : 'rgba(59, 130, 246, 0.1)',
               borderLeft: '4px solid #53bdeb',
               borderRadius: '6px',
               padding: '6px 10px',
               marginBottom: '6px',
               fontSize: '12.5px',
-              color: '#8696a0',
+              color: isDarkMode ? '#8696a0' : '#475569',
               display: 'flex',
               flexDirection: 'column',
               gap: '2px',
@@ -106,42 +109,88 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 maxWidth: '350px',
               }}
             >
-              {parentMsg.message_body}
+              {parentMsg.message_body || parentMsg.data?.caption || `[${parentMsg.message_type.toUpperCase()} Attachment]`}
             </span>
           </div>
         )}
 
         {/* Attachment */}
         {message.attachment && (() => {
-          const attachUrl = message.attachment.startsWith('http')
-            ? message.attachment
-            : message.attachment.startsWith('/media/')
-            ? `${BACKEND_URL}${message.attachment}`
-            : `${BACKEND_URL}/media/${message.attachment}`;
+          const normalizeAttachmentUrl = (rawUrl: string) => {
+            const cleaned = rawUrl.trim().replace(/\\/g, '/');
+            if (cleaned.match(/^https?:\/\//i)) {
+              try {
+                const parsed = new URL(cleaned);
+                parsed.pathname = parsed.pathname.replace(/ /g, '_');
+                return parsed.toString();
+              } catch {
+                return cleaned;
+              }
+            }
 
-          if (message.message_type === 'image' || message.message_type === 'sticker') {
-            return (
+            let path = cleaned.replace(/\/+/g, '/');
+            if (path.startsWith('/')) {
+              path = path.slice(1);
+            }
+
+            path = path.replace(/ /g, '_');
+            if (path.startsWith('whatsapp/uploads/')) {
+              path = `media/${path}`;
+            } else if (path.startsWith('devwhatsapp/uploads/')) {
+              path = `media/whatsapp/uploads/${path.slice('devwhatsapp/uploads/'.length)}`;
+            } else if (!path.startsWith('media/')) {
+              path = `media/${path}`;
+            }
+
+            return `${BACKEND_URL}/${path}`;
+          };
+
+          const attachUrl = normalizeAttachmentUrl(message.attachment);
+          const encodedAttachUrl = encodeURI(attachUrl);
+
+          const attachmentType = message.message_type?.toLowerCase() || '';
+          const attachmentFilename = message.message_body || attachUrl;
+          const lowerUrl = attachUrl.toLowerCase();
+          const isImageUrl = lowerUrl.match(/\.(png|jpe?g|gif|webp|bmp|svg)(\?.*)?$/);
+          const isVideoUrl = lowerUrl.match(/\.(mp4|mov|webm|ogg|mkv)(\?.*)?$/);
+          const isAudioUrl = lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac|flac)(\?.*)?$/);
+
+          if (attachmentType === 'image' || attachmentType === 'sticker' || isImageUrl) {
+            return imgError ? (
+              <div style={{ color: '#f87171', fontSize: '12px' }}>
+                Image failed to load. URL: <br />
+                <a href={encodedAttachUrl} target="_blank" rel="noreferrer" style={{ color: '#93c5fd' }}>
+                  {encodedAttachUrl}
+                </a>
+              </div>
+            ) : (
               <img
-                src={attachUrl}
+                src={encodedAttachUrl}
                 alt="attachment"
+                onError={() => setImgError(true)}
                 style={{
                   maxWidth: '100%',
+                  maxHeight: '160px',
+                  width: 'auto',
                   height: 'auto',
                   borderRadius: '8px',
                   marginBottom: message.message_body ? '8px' : '0',
                   display: 'block',
+                  objectFit: 'cover',
                 }}
               />
             );
           }
 
-          if (message.message_type === 'video') {
+          if (attachmentType === 'video' || isVideoUrl) {
             return (
               <video
-                src={attachUrl}
+                src={encodedAttachUrl}
                 controls
                 style={{
                   maxWidth: '100%',
+                  maxHeight: '160px',
+                  width: 'auto',
                   height: 'auto',
                   borderRadius: '8px',
                   marginBottom: '8px',
@@ -150,10 +199,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             );
           }
 
-          if (message.message_type === 'audio' || message.message_type === 'voice') {
+          if (attachmentType === 'audio' || attachmentType === 'voice' || isAudioUrl) {
             return (
               <audio
-                src={attachUrl}
+                src={encodedAttachUrl}
                 controls
                 style={{
                   maxWidth: '100%',
@@ -165,7 +214,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
           return (
             <a
-              href={attachUrl}
+              href={encodedAttachUrl}
               target="_blank"
               rel="noreferrer"
               style={{
@@ -176,12 +225,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 textDecoration: 'none',
                 fontSize: '13px',
                 padding: '8px',
-                background: 'rgba(0,0,0,0.2)',
+                background: isDarkMode ? 'rgba(0,0,0,0.2)' : 'rgba(59, 130, 246, 0.1)',
                 borderRadius: '6px',
                 marginBottom: '6px',
               }}
             >
-              <Download size={14} /> {message.message_body || 'Download Attachment'}
+              <Download size={14} /> {attachmentFilename || 'Download Attachment'}
             </a>
           );
         })()}
@@ -205,7 +254,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             gap: '4px',
             justifyContent: 'flex-end',
             fontSize: '10px',
-            color: 'rgba(255,255,255,0.6)',
+            color: isDarkMode ? 'rgba(255,255,255,0.6)' : 'rgba(15, 23, 42, 0.6)',
             marginTop: '4px',
           }}
         >
@@ -221,12 +270,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             marginTop: '-10px',
             marginLeft: isIncoming ? '6px' : undefined,
             marginRight: isIncoming ? undefined : '6px',
-            background: '#2a3942',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: isDarkMode ? '#2a3942' : '#e0f2fe',
+            border: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(59, 130, 246, 0.2)',
             borderRadius: '12px',
             padding: '2px 7px',
             fontSize: '16px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.35)',
+            boxShadow: isDarkMode ? '0 2px 8px rgba(0,0,0,0.35)' : '0 2px 8px rgba(0,0,0,0.1)',
             zIndex: 1,
             display: 'inline-flex',
             alignItems: 'center',

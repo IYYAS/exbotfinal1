@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { whatsappAPI } from '../api';
+import { useTheme } from '../context/ThemeContext';
 import {
   ArrowLeft,
   Save,
@@ -317,6 +318,7 @@ const FbDeliveryOptions = ({ selectedNode, setNodes }: { selectedNode: any, setN
 export const FlowBuilder: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { isDarkMode, toggleTheme } = useTheme();
 
   // Flow States
   const [flow, setFlow] = useState<ChatbotFlow | null>(null);
@@ -333,7 +335,6 @@ export const FlowBuilder: React.FC = () => {
   const [flowLabel, setFlowLabel] = useState<string>('');
   const [flowName, setFlowName] = useState<string>('');
   const [sidebarWidth, setSidebarWidth] = useState<number>(420);
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [showCreateTemplateDropdown, setShowCreateTemplateDropdown] = useState(false);
   // ─── Inline Template Create Modal ─────────────────────────────────────────
   const [showTplModal, setShowTplModal] = useState(false);
@@ -982,9 +983,9 @@ export const FlowBuilder: React.FC = () => {
         @keyframes pulse { 0%,100%{opacity:1;transform:translateX(-50%) scale(1)} 50%{opacity:0.9;transform:translateX(-50%) scale(1.02)} }
       `}</style>
         {/* Header Panel */}
-        <header style={{ height: 60, borderBottom: '1px solid var(--fb-border-main)', background: 'var(--fb-bg-card)', display: 'flex', alignItems: 'center', padding: '0 24px', justifyContent: 'space-between', zIndex: 10 }}>
+        <header style={{ height: 60, borderBottom: '1px solid var(--fb-border-main)', background: 'var(--fb-bg-header)', display: 'flex', alignItems: 'center', padding: '0 24px', justifyContent: 'space-between', zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button onClick={() => navigate('/bot-reply')} style={{ border: 'none', background: 'var(--fb-bg-card-header)', width: 34, height: 34, borderRadius: 8, color: '#e2e8f0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <button onClick={() => navigate('/bot-reply')} style={{ border: 'none', background: 'var(--fb-bg-card-header)', width: 34, height: 34, borderRadius: 8, color: 'var(--fb-text-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <ArrowLeft size={16} />
             </button>
             <div>
@@ -1031,7 +1032,7 @@ export const FlowBuilder: React.FC = () => {
                   }}
                 />
                 <button
-                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  onClick={() => toggleTheme()}
                   style={{ marginLeft: 16, background: 'var(--fb-bg-sidebar)', border: '1px solid var(--fb-border-card)', borderRadius: 8, padding: '6px 12px', color: 'var(--fb-text-primary)', cursor: 'pointer', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
                 >
                   {isDarkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
@@ -1042,7 +1043,7 @@ export const FlowBuilder: React.FC = () => {
 
           {/* Message notification */}
           {message && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: message.type === 'success' ? '#064e3b' : '#7f1d1d', border: `1px solid ${message.type === 'success' ? '#059669' : '#dc2626'}`, color: 'var(--fb-text-primary)', padding: '6px 16px', borderRadius: 8, fontSize: 13 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: message.type === 'success' ? 'var(--success-bg)' : 'var(--danger-bg)', border: `1px solid ${message.type === 'success' ? 'var(--success-border)' : 'var(--danger-border)'}`, color: 'var(--text-primary)', padding: '6px 16px', borderRadius: 8, fontSize: 13 }}>
               {message.type === 'success' ? <CheckCircle size={15} /> : <AlertCircle size={15} />}
               {message.text}
             </div>
@@ -1056,14 +1057,14 @@ export const FlowBuilder: React.FC = () => {
               alignItems: 'center',
               gap: 8,
               padding: '9px 18px',
-              background: 'linear-gradient(135deg,#3b82f6,#8b5cf6)',
-              color: '#fff',
+              background: 'var(--accent-gradient)',
+              color: 'var(--surface-color)',
               border: 'none',
               borderRadius: 8,
               cursor: 'pointer',
               fontSize: 13,
               fontWeight: 600,
-              boxShadow: '0 4px 12px rgba(59,130,246,0.3)',
+              boxShadow: 'var(--card-shadow-soft)',
             }}
           >
             {saving ? 'Saving...' : 'Save Flow'}
@@ -1103,10 +1104,10 @@ export const FlowBuilder: React.FC = () => {
                           textAlign: 'left',
                           transition: 'background 0.2s, color 0.2s',
                         }}
-                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--fb-bg-card-header)'; e.currentTarget.style.color = '#fff'; }}
+                        onMouseOver={(e) => { e.currentTarget.style.background = 'var(--fb-bg-card-header)'; e.currentTarget.style.color = 'var(--fb-text-primary)'; }}
                         onMouseOut={(e) => { e.currentTarget.style.background = 'var(--fb-bg-card)'; e.currentTarget.style.color = 'var(--fb-text-tertiary)'; }}
                       >
-                        <span style={{ display: 'flex', color: '#60a5fa' }}>{block.icon}</span>
+                        <span style={{ display: 'flex', color: 'var(--accent-color)' }}>{block.icon}</span>
                         {block.name}
                       </button>
                     ))}
@@ -1142,8 +1143,8 @@ export const FlowBuilder: React.FC = () => {
                   top: 70,
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  background: 'linear-gradient(135deg,#059669,#10b981)',
-                  color: '#fff',
+                  background: 'var(--accent-gradient)',
+                  color: 'var(--surface-color)',
                   padding: '10px 24px',
                   borderRadius: 30,
                   fontSize: 13,
@@ -1157,7 +1158,7 @@ export const FlowBuilder: React.FC = () => {
                   animation: 'pulse 1.5s ease-in-out infinite',
                 }}>
                   <span style={{ fontSize: 18 }}>🔗</span>
-                  Now click the <strong>← Input</strong> zone on any target node to connect — or press <kbd style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 7px', borderRadius: 4, fontFamily: 'monospace' }}>Esc</kbd> to cancel
+                  Now click the <strong>← Input</strong> zone on any target node to connect — or press <kbd style={{ background: 'rgba(0,0,0,0.3)', padding: '2px 7px', borderRadius: 4, fontFamily: 'var(--font-family)' }}>Esc</kbd> to cancel
                 </div>
               )}
 

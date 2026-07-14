@@ -443,7 +443,7 @@ const DetailDrawer: React.FC<{
                 border: '1px solid var(--border-color)',
                 borderRadius: 10,
                 padding: 16,
-                fontFamily: "'Fira Code', 'Cascadia Code', monospace",
+                fontFamily: 'var(--font-family)',
               }}
             >
               <JsonNode data={flow.flow_data} depth={0} />

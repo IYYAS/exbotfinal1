@@ -1,6 +1,9 @@
-import React, { useRef } from 'react';
-import { Send, Paperclip, Link2, Loader2, Trash2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Send, Link2, Trash2, Mic, Plus, Smile } from 'lucide-react';
+import EmojiPicker, { Theme } from 'emoji-picker-react';
+import type { EmojiClickData } from 'emoji-picker-react';
 import type { ContactInfo } from '../types';
+import { useTheme } from '../context/ThemeContext';
 
 interface MessageInputProps {
   messageInput: string;
@@ -11,15 +14,17 @@ interface MessageInputProps {
   uploadingFile: boolean;
   sending: boolean;
   previewUrl: boolean;
-  attachmentMenuOpen: boolean;
   onPreviewUrlToggle: () => void;
-  onAttachmentMenuToggle: () => void;
   onFileSelect: (file: File) => void;
+  onRemoveAttachment: () => void;
+  pendingAttachment: { previewUrl: string; name: string; type: string } | null;
   onStartRecording: () => void;
   onStopRecording: () => void;
   onCancelRecording: () => void;
-  onSendMediaUrl: (type: 'image' | 'video' | 'audio' | 'document', url: string) => void;
+  onShowTemplates: () => void;
+  onShowCannedResponse: () => void;
   activeContact: ContactInfo | null;
+  isBlocked: boolean;
   micError: string;
   onMicErrorClose: () => void;
 }
@@ -33,24 +38,48 @@ export const MessageInput: React.FC<MessageInputProps> = ({
   uploadingFile,
   sending,
   previewUrl,
-  attachmentMenuOpen,
   onPreviewUrlToggle,
-  onAttachmentMenuToggle,
   onFileSelect,
+  onRemoveAttachment,
+  pendingAttachment,
   onStartRecording,
   onStopRecording,
   onCancelRecording,
+  onShowTemplates,
+  onShowCannedResponse,
+  isBlocked,
   micError,
   onMicErrorClose,
 }) => {
+  const { isDarkMode } = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showPlusMenu, setShowPlusMenu] = useState(false);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showPlusMenu && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowPlusMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPlusMenu]);
 
   const formatRecordingTime = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    onMessageChange(`${messageInput}${emojiData.emoji}`);
+    setShowEmojiPicker(false);
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       onFileSelect(file);
+      e.target.value = '';
     }
   };
 
@@ -144,108 +173,353 @@ export const MessageInput: React.FC<MessageInputProps> = ({
 
       {/* Input form */}
       {!isRecording && (
-        <form
-          onSubmit={onSendMessage}
+        <div style={{ position: 'relative' }}>
+          {isBlocked && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                zIndex: 2,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                padding: '24px',
+                background: 'rgba(0, 0, 0, 0.9)',
+                color: '#f8fafc',
+                textAlign: 'center',
+                borderRadius: '0 0 0 0',
+              }}
+            >
+              <div
+                style={{
+                  width: 60,
+                  height: 60,
+                  borderRadius: '50%',
+                  border: '2px solid rgba(239, 68, 68, 0.3)',
+                  display: 'grid',
+                  placeItems: 'center',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </div>
+              <div style={{ fontSize: '15px', fontWeight: 700 }}>Blocked user</div>
+              <div style={{ maxWidth: '380px', color: '#cbd5e1', fontSize: '13px' }}>
+                This conversation is blocked by WhatsApp Cloud API. Messages cannot be sent until the contact is unblocked.
+              </div>
+            </div>
+          )}
+
+          {pendingAttachment && (
+        <div
           style={{
-            padding: '12px 24px',
-            background: '#202c33',
+            margin: '0 18px 10px',
+            background: '#111b22',
+            border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: '16px',
+            padding: '12px',
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
           }}
         >
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-            style={{ display: 'none' }}
-          />
+          <div style={{ width: 72, minWidth: 72, height: 72, borderRadius: '16px', overflow: 'hidden', background: '#0f1720' }}>
+            {pendingAttachment.type.startsWith('image/') ? (
+              <img
+                src={pendingAttachment.previewUrl}
+                alt={pendingAttachment.name}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  display: 'grid',
+                  placeItems: 'center',
+                  padding: '10px',
+                  color: '#cbd5e1',
+                  fontSize: '12px',
+                  textAlign: 'center',
+                }}
+              >
+                {pendingAttachment.name}
+              </div>
+            )}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ color: '#f8fafc', fontSize: '14px', fontWeight: 600, marginBottom: '6px' }}>
+              {pendingAttachment.type.startsWith('image/') ? 'Image selected' : 'Attachment selected'}
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: '12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {pendingAttachment.name}
+            </div>
+            <div style={{ color: '#94a3b8', fontSize: '12px', marginTop: '4px' }}>
+              Add a caption below before sending.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onRemoveAttachment}
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              border: 'none',
+              background: '#1f2937',
+              color: '#f8fafc',
+              cursor: 'pointer',
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
-          {/* Attachment button */}
-          <div style={{ position: 'relative' }}>
-            <button
-              type="button"
-              onClick={onAttachmentMenuToggle}
-              disabled={uploadingFile || sending}
+      <form
+            onSubmit={onSendMessage}
+            style={{
+              padding: '16px 18px',
+              background: 'transparent',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              opacity: isBlocked ? 0.5 : 1,
+            }}
+          >
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+
+            <div
               style={{
-                background: 'none',
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '12px 16px',
+                background: '#ffffff',
+                borderRadius: '32px',
+                boxShadow: '0 10px 40px rgba(15, 23, 42, 0.08)',
+                border: '1px solid rgba(15, 23, 42, 0.08)',
+              }}
+            >
+              <div ref={menuRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPlusMenu((v) => !v);
+                    setShowEmojiPicker(false);
+                  }}
+                  disabled={sending}
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: '#f8fafc',
+                    color: '#3b82f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Plus size={20} />
+                </button>
+
+                {showPlusMenu && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: '52px',
+                      left: 0,
+                      width: '240px',
+                      background: '#ffffff',
+                      borderRadius: '18px',
+                      boxShadow: '0 18px 40px rgba(15, 23, 42, 0.16)',
+                      overflow: 'hidden',
+                      zIndex: 100,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPlusMenu(false);
+                        onShowTemplates();
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '14px 16px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        color: '#0f172a',
+                        fontWeight: 700,
+                      }}
+                    >
+                      📩 Send Flow or Message Template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPlusMenu(false);
+                        onShowCannedResponse();
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '14px 16px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        color: '#334155',
+                      }}
+                    >
+                      AB Canned Response
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPlusMenu(false);
+                        fileInputRef.current?.click();
+                      }}
+                      style={{
+                        width: '100%',
+                        textAlign: 'left',
+                        padding: '14px 16px',
+                        border: 'none',
+                        background: 'transparent',
+                        cursor: 'pointer',
+                        color: '#334155',
+                      }}
+                    >
+                      📎 File Attachment
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEmojiPicker((v) => !v)}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: '#f8fafc',
+                  color: '#f59e0b',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Smile size={20} />
+              </button>
+
+              <input
+                type="text"
+                placeholder={pendingAttachment ? 'Add a caption...' : "Type a message... (For canned response type '/')"}
+                value={messageInput}
+                onChange={(e) => onMessageChange(e.target.value)}
+                disabled={isBlocked}
+                style={{
+                  flex: 1,
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  color: '#475569',
+                  padding: '0',
+                  fontSize: '14px',
+                  fontFamily: 'var(--font-family)',
+                }}
+              />
+
+              <button
+                type="button"
+                onClick={onPreviewUrlToggle}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: previewUrl ? '#6366f1' : '#94a3b8',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px',
+                }}
+              >
+                <Link2 size={18} />
+              </button>
+
+              <button
+                type="button"
+                onClick={isBlocked ? undefined : onStartRecording}
+                disabled={isBlocked || sending || uploadingFile}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: isBlocked ? '#94a3b8' : '#10b981',
+                  cursor: isBlocked ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '6px',
+                }}
+              >
+                <Mic size={18} />
+              </button>
+            </div>
+
+            {showEmojiPicker && (
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '72px',
+                  left: '16px',
+                  zIndex: 50,
+                  boxShadow: '0 18px 50px rgba(15, 23, 42, 0.18)',
+                  borderRadius: '18px',
+                  overflow: 'hidden',
+                }}
+              >
+                <EmojiPicker onEmojiClick={handleEmojiClick} theme={isDarkMode ? Theme.DARK : Theme.LIGHT} />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={sending || uploadingFile || isBlocked || (!messageInput.trim() && !pendingAttachment)}
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
                 border: 'none',
-                color: '#8696a0',
-                cursor: 'pointer',
-                padding: '6px',
+                background: isBlocked ? '#a78bfa' : '#7c3aed',
+                color: '#ffffff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                borderRadius: '50%',
-                backgroundColor: attachmentMenuOpen ? 'rgba(255,255,255,0.1)' : 'transparent',
+                cursor: sending || uploadingFile || isBlocked || (!messageInput.trim() && !pendingAttachment) ? 'not-allowed' : 'pointer',
+                boxShadow: '0 16px 48px rgba(124, 58, 237, 0.24)',
+                opacity: sending || uploadingFile || isBlocked || (!messageInput.trim() && !pendingAttachment) ? 0.7 : 1,
               }}
             >
-              {uploadingFile ? <Loader2 size={20} className="spin" /> : <Paperclip size={20} />}
+              <Send size={20} />
             </button>
-          </div>
-
-          {/* Link Preview Toggle */}
-          <button
-            type="button"
-            onClick={onPreviewUrlToggle}
-            style={{
-              background: previewUrl ? 'rgba(83,189,235,0.18)' : 'none',
-              border: previewUrl ? '1px solid #53bdeb' : '1px solid transparent',
-              color: previewUrl ? '#53bdeb' : '#8696a0',
-              cursor: 'pointer',
-              padding: '5px 8px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              fontSize: '11px',
-              fontWeight: 600,
-              transition: 'all 0.2s',
-            }}
-          >
-            <Link2 size={14} />
-            {previewUrl ? 'ON' : 'OFF'}
-          </button>
-
-          <input
-            type="text"
-            placeholder="Type a message..."
-            value={messageInput}
-            onChange={(e) => onMessageChange(e.target.value)}
-            style={{
-              flex: 1,
-              background: '#2a3942',
-              border: 'none',
-              outline: 'none',
-              borderRadius: '8px',
-              color: '#e9edef',
-              padding: '10px 16px',
-              fontSize: '14.5px',
-            }}
-          />
-
-          {/* Send / Mic button */}
-          <button
-            type={messageInput.trim() ? 'submit' : 'button'}
-            onClick={!messageInput.trim() ? onStartRecording : undefined}
-            disabled={sending || uploadingFile}
-            style={{
-              backgroundColor: '#00a884',
-              color: '#ffffff',
-              border: 'none',
-              width: '42px',
-              height: '42px',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            {messageInput.trim() ? <Send size={18} /> : <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2c5.52 0 10 3.13 10 7v6c0 3.87-4.48 7-10 7s-10-3.13-10-7v-6c0-3.87 4.48-7 10-7m0 2c-4.41 0-8 2.69-8 6v6c0 3.31 3.59 6 8 6s8-2.69 8-6v-6c0-3.31-3.59-6-8-6z"/></svg>}
-          </button>
-        </form>
+          </form>
+        </div>
       )}
     </>
   );

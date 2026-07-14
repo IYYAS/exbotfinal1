@@ -108,6 +108,30 @@ class WhatsAppClient:
         """Fetch preview token for draft flows."""
         return self._make_request("GET", f"{flow_id}", params={"fields": "preview.invalidate(true)"})
 
+    def get_blocked_users(self):
+        """Fetch blocked WhatsApp users for this phone number."""
+        return self._make_request("GET", f"{self.phone_number_id}/block_users")
+
+    def block_users(self, wa_ids):
+        """Block one or more WhatsApp users."""
+        payload = {
+            "messaging_product": "whatsapp",
+            "block_users": [
+                {"user": str(wa_id)} for wa_id in wa_ids if wa_id
+            ]
+        }
+        return self._make_request("POST", f"{self.phone_number_id}/block_users", payload=payload)
+
+    def unblock_users(self, wa_ids):
+        """Unblock one or more WhatsApp users."""
+        payload = {
+            "messaging_product": "whatsapp",
+            "block_users": [
+                {"user": str(wa_id)} for wa_id in wa_ids if wa_id
+            ]
+        }
+        return self._make_request("DELETE", f"{self.phone_number_id}/block_users", payload=payload)
+
     def upload_media(self, file_content, file_name, file_type):
         """Upload a file to Meta and get a media_id."""
         files = {

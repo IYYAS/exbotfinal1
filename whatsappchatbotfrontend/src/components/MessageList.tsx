@@ -2,6 +2,7 @@ import React from 'react';
 import { Loader2, MessageSquare } from 'lucide-react';
 import type { MessageLog, ContactInfo } from '../types';
 import { MessageBubble } from './MessageBubble';
+import { useTheme } from '../context/ThemeContext';
 
 interface MessageListProps {
   messages: MessageLog[];
@@ -24,6 +25,7 @@ export const MessageList: React.FC<MessageListProps> = ({
   onQuotedClick,
   messagesEndRef,
 }) => {
+  const { isDarkMode } = useTheme();
   return (
     <div
       style={{
@@ -48,7 +50,7 @@ export const MessageList: React.FC<MessageListProps> = ({
             alignItems: 'center',
             justifyContent: 'center',
             gap: '12px',
-            color: '#8696a0',
+            color: 'var(--text-secondary)',
           }}
         >
           <MessageSquare size={48} style={{ opacity: 0.3 }} />

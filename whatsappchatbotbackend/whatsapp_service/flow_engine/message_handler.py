@@ -36,8 +36,11 @@ class MessageHandler:
         contact = self._resolve_contact(msg, vendor, wa_id, contacts)
         msg_body, attachment_path = self._extract_body_and_attachment(msg, msg_type, vendor)
 
-        # Deduplicate: if wamid already logged, skip everything to avoid double-processing
+        # Save the incoming message for the primary vendor
         is_new = self._log_message(msg, vendor, contact, wa_id, msg_type, msg_body, attachment_path)
+        print(f"📌 Primary log saved: vendor={vendor.name if vendor else 'NONE'}, contact={contact}, wa_id={wa_id!r}, msg_id={msg_id!r}")
+        # Also save the same incoming message for other vendors sharing this phone number
+        self._log_message_to_shared_vendors(msg, vendor, wa_id, msg_type, msg_body, attachment_path)
         if not is_new:
             print(f"\u26a0️  Duplicate wamid={msg_id!r} — already logged, skipping bot flow")
             return
@@ -271,10 +274,34 @@ class MessageHandler:
                      msg_type: str, msg_body: str, attachment_path: str | None) -> bool:
         """Persist the incoming message to WhatsAppMessageLog.
         Returns True if a new record was created, False if it was a duplicate."""
-        _, created = WhatsAppMessageLog.objects.get_or_create(
-            wamid=msg.get('id'),
-            defaults=dict(
+        message_id = msg.get('id') or msg.get('message_id')
+
+        if not message_id:
+            # Some webhook payloads may omit the message id. In that case,
+            # create the log record without deduplication by wamid.
+            new_log = WhatsAppMessageLog.objects.create(
                 vendor=vendor,
+                contact=contact,
+                contact_wa_id=wa_id,
+                is_incoming=True,
+                status='received',
+                message_body=msg_body,
+                message_type=msg_type,
+                platform='whatsapp',
+                attachment=attachment_path,
+                data={**msg, 'debug_reason': 'missing_message_id'}
+            )
+            print(
+                f"✅ poda Message logged without wamid: vendor={vendor}, contact={contact}, "
+                f"wa_id={wa_id!r}, type={msg_type}, body={msg_body!r}, "
+                f"log_id={new_log.id}, messaged_at={new_log.messaged_at}"
+            )
+            return True
+
+        log, created = WhatsAppMessageLog.objects.get_or_create(
+            vendor=vendor,
+            wamid=message_id,
+            defaults=dict(
                 contact=contact,
                 contact_wa_id=wa_id,
                 is_incoming=True,
@@ -287,10 +314,77 @@ class MessageHandler:
             )
         )
         if created:
-            print(f"✅ Message logged: wamid={msg.get('id')!r}")
+            print(
+                f"✅ poda Message logged: vendor={vendor}, contact={contact}, "
+                f"wa_id={wa_id!r}, msg_id={message_id!r}, type={msg_type}, "
+                f"body={msg_body!r}, payload_ts={msg.get('timestamp')!r}, "
+                f"log_id={log.id}, messaged_at={log.messaged_at}"
+            )
         else:
-            print(f"⚠️  Duplicate message skipped: wamid={msg.get('id')!r}")
+            print(
+                f"⚠️  Duplicate message skipped: wamid={message_id!r}, "
+                f"existing_log_id={log.id}, messaged_at={log.messaged_at}"
+            )
         return created
+
+    def _log_message_to_shared_vendors(self, msg: dict, vendor, wa_id: str,
+                                       msg_type: str, msg_body: str, attachment_path: str | None):
+        """Also save the incoming message for all vendors sharing this phone number."""
+        try:
+            from ..models import VendorSettings, Vendor
+            vendor_settings = VendorSettings.objects.filter(vendor=vendor).first()
+            if not vendor_settings or not vendor_settings.whatsapp_phone_number_id:
+                return
+
+            shared_vendors = Vendor.objects.filter(
+                settings__whatsapp_phone_number_id=vendor_settings.whatsapp_phone_number_id
+            ).exclude(id=vendor.id)
+
+            message_id = msg.get('id') or msg.get('message_id')
+            for shared_vendor in shared_vendors:
+                shared_contact = Contact.objects.filter(vendor=shared_vendor, wa_id=wa_id).first()
+                if not shared_contact:
+                    continue
+
+                if message_id:
+                    shared_log, created = WhatsAppMessageLog.objects.get_or_create(
+                        vendor=shared_vendor,
+                        wamid=message_id,
+                        defaults=dict(
+                            contact=shared_contact,
+                            contact_wa_id=wa_id,
+                            is_incoming=True,
+                            status='received',
+                            message_body=msg_body,
+                            message_type=msg_type,
+                            platform='whatsapp',
+                            attachment=attachment_path,
+                            data=msg
+                        )
+                    )
+                else:
+                    shared_log = WhatsAppMessageLog.objects.create(
+                        vendor=shared_vendor,
+                        contact=shared_contact,
+                        contact_wa_id=wa_id,
+                        is_incoming=True,
+                        status='received',
+                        message_body=msg_body,
+                        message_type=msg_type,
+                        platform='whatsapp',
+                        attachment=attachment_path,
+                        data={**msg, 'debug_reason': 'missing_message_id_shared_vendor'}
+                    )
+                    created = True
+
+                if created:
+                    print(
+                        f"✅ Shared vendor message logged: vendor={shared_vendor}, "
+                        f"contact={shared_contact}, wa_id={wa_id!r}, msg_id={message_id!r}, "
+                        f"shared_log_id={shared_log.id}"
+                    )
+        except Exception as ex:
+            print(f"⚠️ Shared vendor log error: {ex}")
 
     def _update_contact_activity(self, contact):
         """Increment unread count and update last activity timestamp."""

@@ -1,7 +1,8 @@
 import axios from 'axios';
 
-// Backend URL - use ngrok for production
-export const BACKEND_URL = 'https://lanette-unmonarchic-contradictorily.ngrok-free.dev';
+// Use local backend for debugging.
+// Change BACKEND_URL back to the ngrok host when done testing.
+export const BACKEND_URL = 'http://localhost:8000';
 export const NGROK_URL = 'https://lanette-unmonarchic-contradictorily.ngrok-free.dev';
 const API_BASE_URL = `${BACKEND_URL}/api`;
 
@@ -31,19 +32,16 @@ export const whatsappAPI = {
   fetchAccountStatus: () => api.get('/whatsapp/account-status/'),
 
   // Live Chat API endpoints
-  fetchContacts: () => api.get('/whatsapp/contacts/'),
+  fetchContacts: (params: any = {}) => api.get('/whatsapp/contacts/', { params }),
   addContact: (contactData: any) => api.post('/whatsapp/contacts/', contactData),
   updateContact: (id: number, contactData: any) => api.put(`/whatsapp/contacts/${id}/`, contactData),
   fetchMessages: (contact?: string) => api.get('/whatsapp/messages/', { params: contact ? { contact } : {} }),
+  deleteMessage: (id: number) => api.delete(`/whatsapp/messages/${id}/`),
   fetchTemplates: () => api.get('/whatsapp/templates/'),
   sendMessage: (to_number: string, body: string, extraData: any = {}) =>
     api.post('/whatsapp/send/', { to_number, body, ...extraData }),
-  sendTemplate: (to_number: string, template: any, imageUrl?: string) => {
-    const data: any = { to_number, template };
-    if (imageUrl) {
-      data.image_url = imageUrl;
-    }
-    return api.post('/whatsapp/send-template/', data);
+  sendTemplate: (to_number: string, template: any) => {
+    return api.post('/whatsapp/send-template/', { to_number, template });
   },
   uploadMedia: (formData: FormData) =>
     api.post('/whatsapp/media/upload/', formData, {
@@ -63,6 +61,11 @@ export const whatsappAPI = {
   deleteTemplate: (templateName: string) => api.delete(`/whatsapp/templates/${templateName}/delete/`),
   sendReaction: (to_number: string, message_id: string, emoji: string) =>
     api.post('/whatsapp/send-reaction/', { to_number, message_id, emoji }),
+  getBlockedUsers: () => api.get('/whatsapp/blocked-users/'),
+  blockUser: (wa_id: string) =>
+    api.post('/whatsapp/blocked-users/', { block_users: [{ user: wa_id }] }),
+  unblockUser: (wa_id: string) =>
+    api.delete('/whatsapp/blocked-users/', { data: { block_users: [{ user: wa_id }] } }),
 
   // Interactive button message (header image optional, up to 3 reply buttons)
   sendInteractiveButtons: (payload: {
